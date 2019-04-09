@@ -75,7 +75,7 @@ public final class Configuration {
   public static final String APGAS_GLBM_LIFELINESTRATEGY = "glb.lifelinestrategy";
 
   /** Default class to use as lifeline strategy */
-  public static final String APGAS_GLBM_DEFAULT_LIFELINESTRATEGY = "fine.glb.util.HypercubeStrategy";
+  public static final String APGAS_GLBM_DEFAULT_LIFELINESTRATEGY = "handist.glb.util.HypercubeStrategy";
 
   /**
    * Property to set for the number of steals made on random hosts to make

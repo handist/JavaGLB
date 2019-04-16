@@ -901,10 +901,13 @@ public class GLBcomputer extends PlaceLocalObject {
         if (intraQueueEmpty) {
           if (bag.isSplittable()) {
             synchronized (intraPlaceQueue) {
+              intraQueueEmpty = false; // Setting the flag early will prevent
+                                       // other workers with work to pile up on
+                                       // the entrance of this synchronized
+                                       // block
               intraPlaceQueue.merge(bag.split(false));
               logger.intraQueueFed++;
             }
-            intraQueueEmpty = false;
           }
         }
 

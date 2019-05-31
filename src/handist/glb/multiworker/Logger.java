@@ -62,7 +62,7 @@ public class Logger {
     out.println("Computation time (s); " + computationTime / 1e9);
     out.println("Result gathering (s); " + resultGatheringTime / 1e9);
     out.print(
-        "Place;IntraQueueSplit;IntraQueueFed;InterQueueSplit;InterQueueFed;"
+        "Place;Worker Spawns;IntraQueueSplit;IntraQueueFed;InterQueueSplit;InterQueueFed;"
             + "Rdm Steals Attempted;Rdm Steals Successes;"
             + "Rdm Steals Received;Rdm Steals Suffered;"
             + "Lifeline Steals Attempts;Lifeline Steals Success;"
@@ -76,14 +76,15 @@ public class Logger {
     out.println();
 
     for (final PlaceLogger l : placeLogs) {
-      out.print(l.place + ";" + l.intraQueueSplit + ";" + l.intraQueueFed + ";"
-          + l.interQueueSplit + ";" + l.interQueueFed + ";" + l.stealsAttempted
-          + ";" + l.stealsSuccess + ";" + l.stealsReceived + ";"
-          + l.stealsSuffered + ";" + l.lifelineStealsAttempted + ";"
-          + l.lifelineStealsSuccess + ";" + l.lifelineStealsReceived + ";"
-          + l.lifelineStealsSuffered + ";" + l.lifelineThreadActive / 1e9 + ";"
-          + l.lifelineThreadHold / 1e9 + ";" + l.lifelineThreadInactive / 1e9
-          + ";" + l.lifelineThreadWokenUp + ";" + l.yieldingTime / 1e9 + ";");
+      out.print(l.place + ";" + l.workerSpawned + ";" + l.intraQueueSplit + ";"
+          + l.intraQueueFed + ";" + l.interQueueSplit + ";" + l.interQueueFed
+          + ";" + l.stealsAttempted + ";" + l.stealsSuccess + ";"
+          + l.stealsReceived + ";" + l.stealsSuffered + ";"
+          + l.lifelineStealsAttempted + ";" + l.lifelineStealsSuccess + ";"
+          + l.lifelineStealsReceived + ";" + l.lifelineStealsSuffered + ";"
+          + l.lifelineThreadActive / 1e9 + ";" + l.lifelineThreadHold / 1e9
+          + ";" + l.lifelineThreadInactive / 1e9 + ";" + l.lifelineThreadWokenUp
+          + ";" + l.yieldingTime / 1e9 + ";");
 
       for (final long i : l.time) {
         out.print(i / 1e9 + ";");

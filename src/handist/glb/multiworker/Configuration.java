@@ -11,6 +11,8 @@
  */
 package handist.glb.multiworker;
 
+import java.io.Serializable;
+
 /**
  * Configuration class holds the environment variables that can be used to tune
  * the multiworker Global Load Balancer. An instance of this class will also be
@@ -44,75 +46,152 @@ package handist.glb.multiworker;
  * java -Dglb.workers=4 -Dglb.lifelinestrategy=com.custom.MyLifelineStrategy &lt;-- other arguments --&gt;
  * </pre>
  *
+ * This class also holds those different parameters during the computation.
+ * Certain values can be modified during the computation by an implementation of
+ * the {@link Tuner} interface.
+ *
  * @author Patrick Finnerty
  *
  *
  *
  */
-public final class Configuration {
+public final class Configuration implements Serializable {
+
+  /** Serial Version UID */
+  private static final long serialVersionUID = 5247073810003721146L;
 
   /**
    * Number of concurrent workers to use for the multi-worker GLB on each host.
    * If not set, the value returned by {@link Runtime#availableProcessors()}
    * will be used.
    */
-  public static final String APGAS_GLBM_WORKERS = "glb.workers";
+  public static final String GLBM_WORKERS = "glb.workers";
 
   /**
    * Size of the chunk of work performed by each worker without interruption
    * before checking the runtime and possibly performing load-balance
    * operations.
    */
-  public static final String APGAS_GLBM_WORKUNIT = "glb.workunit";
+  public static final String GLBM_WORKUNIT = "glb.workunit";
 
-  /** Default value if {@link #APGAS_GLBM_WORKUNIT} is not defined. */
-  public static final String APGAS_GLBM_DEFAULT_WORKUNIT = "511";
+  /** Default value if {@link #GLBM_WORKUNIT} is not defined. */
+  public static final String GLBM_DEFAULT_WORKUNIT = "511";
 
   /**
    * Property for the class to use as lifeline strategy. Classes should be
    * specified with their fully qualified domain name.
    */
-  public static final String APGAS_GLBM_LIFELINESTRATEGY = "glb.lifelinestrategy";
+  public static final String GLBM_LIFELINESTRATEGY = "glb.lifelinestrategy";
 
   /** Default class to use as lifeline strategy */
-  public static final String APGAS_GLBM_DEFAULT_LIFELINESTRATEGY = "handist.glb.util.HypercubeStrategy";
+  public static final String GLBM_DEFAULT_LIFELINESTRATEGY = "handist.glb.util.HypercubeStrategy";
 
   /**
    * Property to set for the number of steals made on random hosts to make
    * before stealing from the lifelines
    */
-  public static final String APGAS_GLBM_RANDOMSTEALS = "glb.randomsteals";
+  public static final String GLBM_RANDOMSTEALS = "glb.randomsteals";
 
   /**
    * Default number of random steals made by the GLB before changing to the
    * lifeline steals
    */
-  public static final String APGAS_GLBM_DEFAULT_RANDOMSTEALS = "1";
+  public static final String GLBM_DEFAULT_RANDOMSTEALS = "1";
 
   /**
-   * Work unit used on the computation
+   * Property to set the interval at which the tuner should be called by the
+   * runtime to adjust the parameters during the computation. Should be a whole
+   * number in nanoseconds.
    */
-  public int n;
+  public static final String GLBM_TUNING_INTERVAL = "glb.tuninginterval";
+
+  /** Default setting for property {@link #GLBM_TUNING_INTERVAL}: 1 second */
+  public static final String GLBM_DEFAULT_TUNING_INTERVAL = "1000000000";
+
+  /**
+   * Property used to set the class which is going to be used to tune the
+   * parameters of the GLB during execution.
+   */
+  public static final String GLBM_TUNERCLASS = "glb.tuner";
+
+  /**
+   * Default class used as tuner. Makes no changes to the settings.
+   */
+  public static final String GLBM_DEFAULT_TUNERCLASS = "handist.glb.multiworker.NoTuning";
+
+  /**
+   * Original value set to {@link #n} as dictated by setting parameter
+   * {@value #GLBM_WORKUNIT}.
+   */
+  public final int originalN;
+
+  /**
+   * Original value set to {@link #t} as defined by the user when setting
+   * property {@value #GLBM_TUNING_INTERVAL}.
+   */
+  public final long originalT;
+
+  /**
+   * Original value set to {@link #w} as defined by the user when setting
+   * property {@value #GLBM_RANDOMSTEALS}.
+   */
+  public final int originalW;
+
+  /**
+   * Work unit used on the computation. May be changed from its original value
+   * by {@link Tuner} implementations.
+   */
+  volatile public int n;
 
   /**
    * Number of places used in the computation
    */
-  public int p;
+  public final int p;
+
+  /**
+   * Number of nanoseconds required to elapse between two calls to the parameter
+   * tuning method {@link Tuner#tune(PlaceLogger, Configuration)}.
+   */
+  public long t;
+
+  /**
+   * Class in charge of dynamically adjusting the parameters of the global load
+   * balancer.
+   */
+  public final String tuner;
 
   /**
    * Number of workers used on the computation at each place
    */
-  public int x;
+  public final int x;
 
   /**
    * Number of random steals to perform by the GLB when it runs out of work
    */
-  public int w;
+  volatile public int w;
 
   /**
    * Class that provides the lifeline strategy used by the GLB
    */
-  public String z;
+  public final String z;
+
+  /**
+   * Resets the configuration parameters that may have been modified during a
+   * computation by the {@link Tuner} implementation to their original values.
+   */
+  public void reset() {
+    n = originalN;
+    t = originalT;
+    w = originalW;
+  }
+
+  @Override
+  public String toString() {
+    return "Places: " + p + " Workers per place: " + x + " Initial Work Unit: "
+        + originalN + " Initial Random Steals: " + originalW
+        + " Lifeline Strategy: " + z + " Tuner: " + tuner
+        + " Initial Tuning Interval: " + originalT;
+  }
 
   /**
    * Protected constructor to avoid instance creation from outside the library.
@@ -134,13 +213,24 @@ public final class Configuration {
    * @param lifeline
    *          string of the class which provides the lifeline strategy to the
    *          GLB
+   * @param tuningTimeout
+   *          number of nanoseconds that need to elapse between two tuning of
+   *          the GLB parameters
+   * @param tunerClass
+   *          fully qualified domain space of the class implementing the
+   *          parameter tuning
    */
   protected Configuration(int places, int workers, int workUnit,
-      int randomSteal, String lifeline) {
+      int randomSteal, String lifeline, long tuningTimeout, String tunerClass) {
     p = places;
     x = workers;
     n = workUnit;
     w = randomSteal;
     z = lifeline;
+    t = tuningTimeout;
+    originalN = n;
+    originalT = tuningTimeout;
+    originalW = w;
+    tuner = tunerClass;
   }
 }

@@ -17,7 +17,8 @@ import apgas.util.PlaceLocalObject;
 import handist.glb.util.LifelineStrategy;
 
 /**
- * Factory class used to provide computation service instances to the programer.
+ * Factory class used to provide computation service instances to the
+ * programmer.
  *
  * @author Patrick Finnerty
  *
@@ -31,23 +32,21 @@ public final class GLBfactory {
    * @return computing service instance
    * @throws ReflectiveOperationException
    *           if the class to be used for
-   *           {@link Configuration#APGAS_GLBM_LIFELINESTRATEGY} could not be
-   *           used
+   *           {@link Configuration#GLBM_LIFELINESTRATEGY} could not be used
    */
   public static GLBcomputer setupGLB() throws ReflectiveOperationException {
-    final int workUnit = Integer
-        .parseInt(System.getProperty(Configuration.APGAS_GLBM_WORKUNIT,
-            Configuration.APGAS_GLBM_DEFAULT_WORKUNIT));
+    final int workUnit = Integer.parseInt(System.getProperty(
+        Configuration.GLBM_WORKUNIT, Configuration.GLBM_DEFAULT_WORKUNIT));
 
     final int randomSteals = Integer
-        .parseInt(System.getProperty(Configuration.APGAS_GLBM_RANDOMSTEALS,
-            Configuration.APGAS_GLBM_DEFAULT_RANDOMSTEALS));
+        .parseInt(System.getProperty(Configuration.GLBM_RANDOMSTEALS,
+            Configuration.GLBM_DEFAULT_RANDOMSTEALS));
 
     LifelineStrategy s = null;
     try {
       final String lifelineStrategy = System.getProperty(
-          Configuration.APGAS_GLBM_LIFELINESTRATEGY,
-          Configuration.APGAS_GLBM_DEFAULT_LIFELINESTRATEGY);
+          Configuration.GLBM_LIFELINESTRATEGY,
+          Configuration.GLBM_DEFAULT_LIFELINESTRATEGY);
       s = (LifelineStrategy) Class.forName(lifelineStrategy).newInstance();
     } catch (InstantiationException | IllegalAccessException
         | ClassNotFoundException e) {
@@ -56,10 +55,25 @@ public final class GLBfactory {
     final LifelineStrategy strategy = s;
 
     final int nbWorkers = Integer
-        .parseInt(System.getProperty(Configuration.APGAS_GLBM_WORKERS,
+        .parseInt(System.getProperty(Configuration.GLBM_WORKERS,
             String.valueOf(Runtime.getRuntime().availableProcessors())));
 
-    return PlaceLocalObject.make(places(),
-        () -> new GLBcomputer(workUnit, randomSteals, strategy, nbWorkers));
+    final long tuningInterval = Long
+        .parseLong(System.getProperty(Configuration.GLBM_TUNING_INTERVAL,
+            Configuration.GLBM_DEFAULT_TUNING_INTERVAL));
+
+    Tuner t = null;
+    try {
+      final String tuner = System.getProperty(Configuration.GLBM_TUNERCLASS,
+          Configuration.GLBM_DEFAULT_TUNERCLASS);
+      t = (Tuner) Class.forName(tuner).newInstance();
+    } catch (InstantiationException | IllegalAccessException
+        | ClassNotFoundException e) {
+      throw (e);
+    }
+    final Tuner tuner = t;
+
+    return PlaceLocalObject.make(places(), () -> new GLBcomputer(workUnit,
+        randomSteals, strategy, nbWorkers, tuningInterval, tuner));
   }
 }

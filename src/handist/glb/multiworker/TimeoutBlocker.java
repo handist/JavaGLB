@@ -43,7 +43,12 @@ public class TimeoutBlocker implements Serializable, ManagedBlocker {
     if (toElapse < 0 || unblock) {
       return true;
     } else {
-      Thread.sleep(toElapse / 1000000, (int) toElapse % 1000000);
+      final long millis = toElapse / 1000000;
+      int nanos = (int) toElapse % 1000000;
+      if (nanos < 0) {
+        nanos = 0;
+      }
+      Thread.sleep(millis, nanos);
       if (Thread.interrupted()) {
         throw new InterruptedException();
       }

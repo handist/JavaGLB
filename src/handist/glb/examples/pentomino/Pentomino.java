@@ -8,11 +8,19 @@ import java.util.Deque;
 import java.util.LinkedList;
 import java.util.Stack;
 
+import handist.glb.examples.Sum;
+import handist.glb.multiworker.Bag;
+
 /**
  * @author Patrick Finnerty
  *
  */
-public class Pentomino {
+public class Pentomino implements Bag<Pentomino, Sum>, Serializable {
+
+  /**
+   *
+   */
+  private static final long serialVersionUID = 6033611157974969906L;
 
   /**
    * Indicates the number of pieces that actually need to be placed by the
@@ -354,30 +362,29 @@ public class Pentomino {
     board = new Board(w, h);
 
     // Create the pieces
-    pieces = new PiecePlaced[NB_PIECE];
-    pieces[0] = new PiecePlaced(new PieceI(w + Board.SENTINEL, h));
-    pieces[1] = new PiecePlaced(new PieceU(w + Board.SENTINEL, h));
-    pieces[2] = new PiecePlaced(new PieceT(w + Board.SENTINEL, h));
-    pieces[3] = new PiecePlaced(new PieceF(w + Board.SENTINEL, h));
-    pieces[4] = new PiecePlaced(new PieceY(w + Board.SENTINEL, h));
-    pieces[5] = new PiecePlaced(new PieceZ(w + Board.SENTINEL, h));
-    pieces[6] = new PiecePlaced(new PieceL(w + Board.SENTINEL, h));
-    pieces[7] = new PiecePlaced(new PieceN(w + Board.SENTINEL, h));
-    pieces[8] = new PiecePlaced(new PieceW(w + Board.SENTINEL, h));
-    pieces[9] = new PiecePlaced(new PieceV(w + Board.SENTINEL, h));
-    P = new PieceP(w + Board.SENTINEL, h);
-    pieces[10] = new PiecePlaced(P);
-
-    X = new PieceX(w + Board.SENTINEL, h);
-    pieces[11] = new PiecePlaced(X);
-
-    stack = new Stack<>();
-
-    // Prepare the arrays that describe the tree
-    lowPiece = new int[NB_PIECE];
-    lowPosition = new int[NB_PIECE];
-    highPiece = new int[NB_PIECE];
-    highPosition = new int[NB_PIECE];
+    /*
+     * pieces = new PiecePlaced[NB_PIECE]; pieces[0] = new PiecePlaced(new
+     * PieceI(w + Board.SENTINEL, h)); pieces[1] = new PiecePlaced(new PieceU(w
+     * + Board.SENTINEL, h)); pieces[2] = new PiecePlaced(new PieceT(w +
+     * Board.SENTINEL, h)); pieces[3] = new PiecePlaced(new PieceF(w +
+     * Board.SENTINEL, h)); pieces[4] = new PiecePlaced(new PieceY(w +
+     * Board.SENTINEL, h)); pieces[5] = new PiecePlaced(new PieceZ(w +
+     * Board.SENTINEL, h)); pieces[6] = new PiecePlaced(new PieceL(w +
+     * Board.SENTINEL, h)); pieces[7] = new PiecePlaced(new PieceN(w +
+     * Board.SENTINEL, h)); pieces[8] = new PiecePlaced(new PieceW(w +
+     * Board.SENTINEL, h)); pieces[9] = new PiecePlaced(new PieceV(w +
+     * Board.SENTINEL, h)); P = new PieceP(w + Board.SENTINEL, h); pieces[10] =
+     * new PiecePlaced(P);
+     *
+     * X = new PieceX(w + Board.SENTINEL, h); pieces[11] = new PiecePlaced(X);
+     *
+     * stack = new Stack<>();
+     *
+     * // Prepare the arrays that describe the tree lowPiece = new
+     * int[NB_PIECE]; lowPosition = new int[NB_PIECE]; highPiece = new
+     * int[NB_PIECE]; highPosition = new int[NB_PIECE];
+     */
+    depth = -1;
   }
 
   /**
@@ -442,12 +449,17 @@ public class Pentomino {
 
     final Pentomino p = new Pentomino(WIDTH, HEIGHT);
     p.init();
+
+    final Pentomino q = new Pentomino(WIDTH, HEIGHT);
+    q.merge(p.split(true));
+
     long duration = System.nanoTime();
     p.toCompletion();
+    q.toCompletion();
     duration = System.nanoTime() - duration;
 
-    System.out.println(
-        "Total solutions " + p.width + "*" + p.height + "; " + p.solutions);
+    System.out.println("Total solutions " + p.width + "*" + p.height + "; "
+        + (p.solutions + q.solutions));
     System.out.println("Time; " + duration / 1e9);
 
   }
@@ -487,6 +499,84 @@ public class Pentomino {
     public int compareTo(PiecePlaced o) {
       return o.piece.compareTo(piece);
     }
+  }
+
+  /*
+   * (non-Javadoc)
+   *
+   * @see handist.glb.multiworker.Bag#isEmpty()
+   */
+  @Override
+  public boolean isEmpty() {
+    return depth < 0 && reserve.isEmpty();
+  }
+
+  /*
+   * (non-Javadoc)
+   *
+   * @see handist.glb.multiworker.Bag#isSplittable()
+   */
+  @Override
+  public boolean isSplittable() {
+    return reserve != null && reserve.size() > 1;
+  }
+
+  /*
+   * (non-Javadoc)
+   *
+   * @see handist.glb.multiworker.Bag#merge(handist.glb.multiworker.Bag)
+   */
+  @Override
+  public void merge(Pentomino b) {
+    if (b.reserve != null) {
+      for (final Pentomino p : b.reserve) {
+        putInReserve(p);
+      }
+    } else {
+      putInReserve(b);
+    }
+  }
+
+  /*
+   * (non-Javadoc)
+   *
+   * @see handist.glb.multiworker.Bag#process(int, handist.glb.util.Fold)
+   */
+  @Override
+  public void process(int workAmount, Sum sharedObject) {
+    while (workAmount > 0 && !isEmpty()) {
+      if (depth < 0) {
+        takeFromReserve();
+      }
+      step();
+      workAmount--;
+    }
+  }
+
+  /*
+   * (non-Javadoc)
+   *
+   * @see handist.glb.multiworker.Bag#split(boolean)
+   */
+  @Override
+  public Pentomino split(boolean takeAll) {
+    Pentomino p = reserve.pop();
+    if (p == null) {
+      p = new Pentomino(width, depth);
+      System.err.println("Meh");
+    }
+
+    return p;
+  }
+
+  /*
+   * (non-Javadoc)
+   *
+   * @see handist.glb.multiworker.Bag#submit(handist.glb.util.Fold)
+   */
+  @Override
+  public void submit(Sum r) {
+    r.sum += solutions;
   }
 
 }

@@ -4,7 +4,6 @@
 package handist.glb.examples.pentomino;
 
 import java.io.Serializable;
-import java.util.Arrays;
 import java.util.Deque;
 import java.util.LinkedList;
 import java.util.Stack;
@@ -20,7 +19,7 @@ public class Pentomino {
    * pentomino algorithm. As we arbitrarily place pieceX at the beginning of the
    * computation, the total number of pieces to place is reduced from 12 to 11.
    */
-  public static final int NB_PIECE = 11;
+  public static final int NB_PIECE = 12;
 
   /**
    * Counter of the number of solutions found. Is incremented during the
@@ -60,6 +59,11 @@ public class Pentomino {
    * Reserve of different explorations kept aside
    */
   transient Deque<Pentomino> reserve;
+
+  /**
+   * Indicates of the current instance needs additional restrictions on symmetry
+   */
+  boolean additionalSymmetryRestriction = false;
 
   /**
    * Array containing all the pieces except for piece X and whether they are
@@ -120,9 +124,18 @@ public class Pentomino {
     highPosition = p.highPosition;
     lowPosition = p.lowPosition;
 
-    // Reconstitute the board
+    // Reconstitute the board in the state p was
     board.clear();
-    // TODO
+    for (final PiecePlaced pp : stack) {
+      board.placeArbitrarily(pp.piece, pp.variation, pp.index);
+    }
+    P = (PieceP) pieces[10].piece;
+
+    if (p.additionalSymmetryRestriction) {
+      P.vars = 4;
+    } else {
+      P.vars = 8;
+    }
   }
 
   /**
@@ -140,7 +153,6 @@ public class Pentomino {
     lowPosition[0] = 0;
     highPosition[0] = 0;
     P.vars = 8;
-
   }
 
   /**
@@ -161,7 +173,6 @@ public class Pentomino {
     for (;;) {
       while (0 <= depth) {
         step();
-        // printStack();
       }
       if (!reserve.isEmpty()) {
         takeFromReserve();
@@ -284,6 +295,49 @@ public class Pentomino {
   }
 
   /**
+   * Produces a Pentomino instance with the bare minimum of field instanciated
+   *
+   * @return a pentomino to be used for transfering a partial exploration of the
+   *         pentomino problem
+   */
+  protected Pentomino getTransferPentomino() {
+    final Pentomino p = new Pentomino();
+
+    p.pieces = new PiecePlaced[NB_PIECE];
+    p.pieces[0] = new PiecePlaced(new PieceI(width + Board.SENTINEL, height));
+    p.pieces[1] = new PiecePlaced(new PieceU(width + Board.SENTINEL, height));
+    p.pieces[2] = new PiecePlaced(new PieceT(width + Board.SENTINEL, height));
+    p.pieces[3] = new PiecePlaced(new PieceF(width + Board.SENTINEL, height));
+    p.pieces[4] = new PiecePlaced(new PieceY(width + Board.SENTINEL, height));
+    p.pieces[5] = new PiecePlaced(new PieceZ(width + Board.SENTINEL, height));
+    p.pieces[6] = new PiecePlaced(new PieceL(width + Board.SENTINEL, height));
+    p.pieces[7] = new PiecePlaced(new PieceN(width + Board.SENTINEL, height));
+    p.pieces[8] = new PiecePlaced(new PieceW(width + Board.SENTINEL, height));
+    p.pieces[9] = new PiecePlaced(new PieceV(width + Board.SENTINEL, height));
+    p.pieces[10] = new PiecePlaced(new PieceP(width + Board.SENTINEL, height));
+    p.pieces[11] = new PiecePlaced(new PieceX(width + Board.SENTINEL, height));
+
+    p.stack = new Stack<>();
+
+    // Prepare the arrays that describe the tree
+    p.lowPiece = new int[NB_PIECE];
+    p.lowPosition = new int[NB_PIECE];
+    p.highPiece = new int[NB_PIECE];
+    p.highPosition = new int[NB_PIECE];
+    p.highPiece[0] = NB_PIECE;
+
+    return p;
+  }
+
+  /**
+   * Private constructor which does not initialize any member, Used for creating
+   * the only necessary members when splitting the Pentomino problem
+   */
+  private Pentomino() {
+
+  }
+
+  /**
    * Constructor of a pentomino puzzle of the specified size
    *
    * @param w
@@ -315,8 +369,7 @@ public class Pentomino {
     pieces[10] = new PiecePlaced(P);
 
     X = new PieceX(w + Board.SENTINEL, h);
-
-    Arrays.sort(pieces); // Not necessary but ...
+    pieces[11] = new PiecePlaced(X);
 
     stack = new Stack<>();
 
@@ -325,51 +378,45 @@ public class Pentomino {
     lowPosition = new int[NB_PIECE];
     highPiece = new int[NB_PIECE];
     highPosition = new int[NB_PIECE];
-    highPiece[0] = NB_PIECE;
   }
 
   /**
-   * Computes the number of unique solutions to the pentomino problem by
-   * arbitrarily placing piece X in some predetermined position on the board.
+   * Generates the various placements of PieceX as new Pentomino instances kept
+   * in this instance as a reserve.
    */
-  public void computeSolutions() {
-    long durationSum = 0;
-    int solutionSum = 0;
+  public void init() {
 
     for (int i = 0; i < (height - 1) / 2; i++) {
-      for (int j = 0; j < (width + 1) / 2; j++) {
-        // Place pieceX in (j,i) coordinates
+      for (int j = 0; j < (width - 1) / 2; j++) {
+        // Generate Pentomino instances with pieceX in (j,i) coordinates
+
         final int placementIndex = i * (width + Board.SENTINEL) + j;
-        board.nextIndex = placementIndex;
-        if (placementIndex != 1 && board.placePiece(X, 0)) {
+        if (placementIndex != 0) {
+          final Pentomino p = getTransferPentomino();
+
+          p.pieces[11].index = placementIndex;
+          p.pieces[11].variation = 0;
+          p.stack.push(p.pieces[11]);
+          p.lowPiece[0] = 1;
+          p.highPiece[0] = 1;
+          p.lowPosition[0] = 1;
+          p.highPosition[0] = 1;
+          p.lowPiece[1] = 0;
+          p.highPiece[1] = 11;
+          p.depth = 1;
+          // p.board.placeArbitrarily(X, 0, placementIndex);
 
           // Remove additional symmetry in cases where PieceX is placed on the
-          // center axis
+          // center column or the center line
           if ((height % 2 == 1 && i + 1 == (height - 1) / 2)
               || (width % 2 == 1 && j == (width - 1) / 2)) {
-            System.err.println(
-                "Additional symmetry removal for (" + j + "," + i + ")");
-            // Remove variations of PieceP to rule out symmetries
-            P.vars = 4;
+            p.additionalSymmetryRestriction = true;
           }
-          board.nextIndex = 0;
 
-          long duration = System.nanoTime();
-          toCompletion();
-          duration = System.nanoTime() - duration;
-          System.out.println("(" + j + "," + i + ") Total solutions: "
-              + solutions + ":Elapsed time(s): " + duration / 1e9);
-          durationSum += duration;
-          solutionSum += solutions;
-
-          reset();
+          putInReserve(p);
         }
       }
     }
-
-    System.out.println(
-        "Total solutions " + width + "*" + height + "; " + solutionSum);
-    System.out.println("Time; " + durationSum / 1e9);
   }
 
   /**
@@ -393,7 +440,15 @@ public class Pentomino {
       return;
     }
 
-    new Pentomino(WIDTH, HEIGHT).computeSolutions();
+    final Pentomino p = new Pentomino(WIDTH, HEIGHT);
+    p.init();
+    long duration = System.nanoTime();
+    p.toCompletion();
+    duration = System.nanoTime() - duration;
+
+    System.out.println(
+        "Total solutions " + p.width + "*" + p.height + "; " + p.solutions);
+    System.out.println("Time; " + duration / 1e9);
 
   }
 

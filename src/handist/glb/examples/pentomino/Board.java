@@ -60,6 +60,7 @@ public class Board {
    */
   public boolean placePiece(Piece p, int variation) {
     final int[] toPlace = p.getVariation(variation);
+    final char c = p.getChar();
 
     /** See if the piece can fit on the board */
     final int shift = toPlace[0]; // the top left tile of the piece may not be
@@ -77,7 +78,7 @@ public class Board {
         return false;
       } else {
         // The current tile if fine, we color the board accordingly
-        board[tileIndex] = p.getChar();
+        board[tileIndex] = c;
       }
     }
 
@@ -154,6 +155,33 @@ public class Board {
       Arrays.fill(board, sentinelStart, sentinelStop, 's');
     }
     Arrays.fill(board, (width + SENTINEL) * height, board.length, 's');
+    nextIndex = 0;
+  }
+
+  /**
+   * Places a piece arbitrarily on the board at the specified index. No checks
+   * are made on the validity of such placement. It is assumed to be valid.
+   *
+   * @param piece
+   *          The piece to place on the board
+   * @param variation
+   *          the orientation of the piece to place
+   * @param index
+   *          the index at which the piece needs to be placed in array
+   *          {@link #board}
+   */
+  public void placeArbitrarily(Piece piece, int variation, int index) {
+    final int[] toPlace = piece.getVariation(variation);
+    final char c = piece.getChar();
+
+    for (int i = 0; i < toPlace.length; i++) {
+      final int tileIndex = index + toPlace[i];
+      board[tileIndex] = c;
+    }
+
+    while (nextIndex < board.length && board[nextIndex] != EMPTY) {
+      nextIndex++;
+    }
   }
 
 }

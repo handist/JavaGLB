@@ -6,7 +6,6 @@ package handist.glb.examples.pentomino;
 import java.io.Serializable;
 import java.util.Deque;
 import java.util.LinkedList;
-import java.util.Stack;
 
 import handist.glb.examples.Sum;
 import handist.glb.multiworker.Bag;
@@ -82,7 +81,11 @@ public class Pentomino implements Bag<Pentomino, Sum>, Serializable {
   /**
    * Stack containing the pieces that were placed on the board
    */
-  Stack<PiecePlaced> stack;
+  PiecePlaced[] stack;
+  /**
+   * Index of the first free space in the stack
+   */
+  int stackIndex;
 
   /**
    * Indicates that 'depth' pieces have been chosen/orientated and placed on the
@@ -126,6 +129,7 @@ public class Pentomino implements Bag<Pentomino, Sum>, Serializable {
 
     pieces = p.pieces;
     stack = p.stack;
+    stackIndex = p.stackIndex;
     depth = p.depth;
     lowPiece = p.lowPiece;
     highPiece = p.highPiece;
@@ -134,7 +138,8 @@ public class Pentomino implements Bag<Pentomino, Sum>, Serializable {
 
     // Reconstitute the board in the state p was
     board.clear();
-    for (final PiecePlaced pp : stack) {
+    for (int i = 0; i < stackIndex; i++) {
+      final PiecePlaced pp = stack[i];
       board.placeArbitrarily(pp.piece, pp.variation, pp.index);
     }
     P = (PieceP) pieces[10].piece;
@@ -167,8 +172,9 @@ public class Pentomino implements Bag<Pentomino, Sum>, Serializable {
    * Prints the current stack status
    */
   public void printStack() {
-    String s = "Stack:" + stack.size() + "[";
-    for (final PiecePlaced pp : stack) {
+    String s = "Stack:" + stackIndex + "[";
+    for (int i = 0; i < stackIndex; i++) {
+      final PiecePlaced pp = stack[i];
       s += pp + " ";
     }
     System.out.println(s);
@@ -248,7 +254,8 @@ public class Pentomino implements Bag<Pentomino, Sum>, Serializable {
         // and add it to the stack
         pp.variation = position;
         pp.index = index;
-        stack.add(pp);
+        stack[stackIndex] = pp;
+        stackIndex++;
         if (depth == NB_PIECE) {
           // We found a solution !
           // System.out.println(this);
@@ -257,12 +264,13 @@ public class Pentomino implements Bag<Pentomino, Sum>, Serializable {
 
           // We need to backtrack, removing the last 2 pieces
           depth--;
-          stack.pop();
+          stackIndex--;
           board.removePiece(pp.piece, pp.variation, pp.index);
           pp.variation = -1;
 
           depth--;
-          final PiecePlaced oneButLast = stack.pop();
+          stackIndex--;
+          final PiecePlaced oneButLast = stack[stackIndex];
           board.removePiece(oneButLast.piece, oneButLast.variation,
               oneButLast.index);
           oneButLast.variation = -1;
@@ -296,7 +304,8 @@ public class Pentomino implements Bag<Pentomino, Sum>, Serializable {
       if (depth < 0) { // Checks if the exploration is finished
         return;
       }
-      final PiecePlaced pp = stack.pop();
+      stackIndex--;
+      final PiecePlaced pp = stack[stackIndex];
       board.removePiece(pp.piece, pp.variation, pp.index);
       pp.variation = -1;
     }
@@ -325,7 +334,8 @@ public class Pentomino implements Bag<Pentomino, Sum>, Serializable {
     p.pieces[10] = new PiecePlaced(new PieceP(width + Board.SENTINEL, height));
     p.pieces[11] = new PiecePlaced(new PieceX(width + Board.SENTINEL, height));
 
-    p.stack = new Stack<>();
+    p.stack = new PiecePlaced[NB_PIECE];
+    p.stackIndex = 0;
 
     // Prepare the arrays that describe the tree
     p.lowPiece = new int[NB_PIECE];
@@ -403,7 +413,8 @@ public class Pentomino implements Bag<Pentomino, Sum>, Serializable {
 
           p.pieces[11].index = placementIndex;
           p.pieces[11].variation = 0;
-          p.stack.push(p.pieces[11]);
+          p.stack[stackIndex] = p.pieces[11];
+          p.stackIndex = 1;
           p.lowPiece[0] = 1;
           p.highPiece[0] = 1;
           p.lowPosition[0] = 1;

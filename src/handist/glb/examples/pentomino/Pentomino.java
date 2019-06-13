@@ -82,10 +82,6 @@ public class Pentomino implements Bag<Pentomino, Sum>, Serializable {
    * Stack containing the pieces that were placed on the board
    */
   PiecePlaced[] stack;
-  /**
-   * Index of the first free space in the stack
-   */
-  int stackIndex;
 
   /**
    * Indicates that 'depth' pieces have been chosen/orientated and placed on the
@@ -129,7 +125,6 @@ public class Pentomino implements Bag<Pentomino, Sum>, Serializable {
 
     pieces = p.pieces;
     stack = p.stack;
-    stackIndex = p.stackIndex;
     depth = p.depth;
     lowPiece = p.lowPiece;
     highPiece = p.highPiece;
@@ -138,7 +133,7 @@ public class Pentomino implements Bag<Pentomino, Sum>, Serializable {
 
     // Reconstitute the board in the state p was
     board.clear();
-    for (int i = 0; i < stackIndex; i++) {
+    for (int i = 0; i < depth; i++) {
       final PiecePlaced pp = stack[i];
       board.placeArbitrarily(pp.piece, pp.variation, pp.index);
     }
@@ -172,8 +167,8 @@ public class Pentomino implements Bag<Pentomino, Sum>, Serializable {
    * Prints the current stack status
    */
   public void printStack() {
-    String s = "Stack:" + stackIndex + "[";
-    for (int i = 0; i < stackIndex; i++) {
+    String s = "Stack:" + depth + "[";
+    for (int i = 0; i < depth; i++) {
       final PiecePlaced pp = stack[i];
       s += pp + " ";
     }
@@ -249,13 +244,12 @@ public class Pentomino implements Bag<Pentomino, Sum>, Serializable {
       lowPosition[depth]++;
 
       if (board.placePiece(pp.piece, position)) {
-        depth++;
         // place p has been placed, we remove it from the pieces left to place
         // and add it to the stack
         pp.variation = position;
         pp.index = index;
-        stack[stackIndex] = pp;
-        stackIndex++;
+        stack[depth] = pp;
+        depth++;
         if (depth == NB_PIECE) {
           // We found a solution !
           // System.out.println(this);
@@ -264,13 +258,11 @@ public class Pentomino implements Bag<Pentomino, Sum>, Serializable {
 
           // We need to backtrack, removing the last 2 pieces
           depth--;
-          stackIndex--;
           board.removePiece(pp.piece, pp.variation, pp.index);
           pp.variation = -1;
 
           depth--;
-          stackIndex--;
-          final PiecePlaced oneButLast = stack[stackIndex];
+          final PiecePlaced oneButLast = stack[depth];
           board.removePiece(oneButLast.piece, oneButLast.variation,
               oneButLast.index);
           oneButLast.variation = -1;
@@ -304,8 +296,7 @@ public class Pentomino implements Bag<Pentomino, Sum>, Serializable {
       if (depth < 0) { // Checks if the exploration is finished
         return;
       }
-      stackIndex--;
-      final PiecePlaced pp = stack[stackIndex];
+      final PiecePlaced pp = stack[depth];
       board.removePiece(pp.piece, pp.variation, pp.index);
       pp.variation = -1;
     }
@@ -335,7 +326,6 @@ public class Pentomino implements Bag<Pentomino, Sum>, Serializable {
     p.pieces[11] = new PiecePlaced(new PieceX(width + Board.SENTINEL, height));
 
     p.stack = new PiecePlaced[NB_PIECE];
-    p.stackIndex = 0;
 
     // Prepare the arrays that describe the tree
     p.lowPiece = new int[NB_PIECE];
@@ -413,15 +403,15 @@ public class Pentomino implements Bag<Pentomino, Sum>, Serializable {
 
           p.pieces[11].index = placementIndex;
           p.pieces[11].variation = 0;
-          p.stack[stackIndex] = p.pieces[11];
-          p.stackIndex = 1;
+          p.stack[0] = p.pieces[11];
+          p.depth = 1;
           p.lowPiece[0] = 1;
           p.highPiece[0] = 1;
           p.lowPosition[0] = 1;
           p.highPosition[0] = 1;
           p.lowPiece[1] = 0;
           p.highPiece[1] = 11;
-          p.depth = 1;
+
           // p.board.placeArbitrarily(X, 0, placementIndex);
 
           // Remove additional symmetry in cases where PieceX is placed on the

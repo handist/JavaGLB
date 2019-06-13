@@ -390,9 +390,16 @@ public class GLBcomputer extends PlaceLocalObject {
    */
   GLBcomputer(int workUnit, int randomSteals, LifelineStrategy s,
       int maximumConcurrentWorkers, long tuningTimeout, Tuner t) {
+    String tunerClass;
+    if (t != null) {
+      tunerClass = t.getClass().toString();
+    } else {
+      tunerClass = "null";
+    }
+
     CONFIGURATION = new Configuration(places().size(), maximumConcurrentWorkers,
         workUnit, randomSteals, s.getClass().toString(), tuningTimeout,
-        t.getClass().toString());
+        tunerClass);
 
     tunerLock = new TimeoutBlocker();
     tuner = t;
@@ -936,7 +943,6 @@ public class GLBcomputer extends PlaceLocalObject {
 
     // Reset the flags and the locks
     lifelineAnswerThreadExited = false;
-    tunerThreadExcited = false;
     shutdown = false;
     workerLock.reset();
     lifelineAnswerLock.reset();
@@ -944,7 +950,10 @@ public class GLBcomputer extends PlaceLocalObject {
 
     // Spawn the lifeline answer and the tuner thread activities
     async(() -> lifelineAnswerThread());
-    uncountedAsyncAt(here(), () -> tunerThread());
+    if (tuner != null) {
+      tunerThreadExcited = false;
+      uncountedAsyncAt(here(), () -> tunerThread());
+    }
 
     // Prepare the first worker to process the work given as parameter
     workerBags.peek().bag.merge(b);

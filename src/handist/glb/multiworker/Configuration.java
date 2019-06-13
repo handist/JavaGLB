@@ -110,14 +110,10 @@ public final class Configuration implements Serializable {
 
   /**
    * Property used to set the class which is going to be used to tune the
-   * parameters of the GLB during execution.
+   * parameters of the GLB during execution. If not specified, no tuner will be
+   * spawned.
    */
   public static final String GLBM_TUNERCLASS = "glb.tuner";
-
-  /**
-   * Default class used as tuner. Makes no changes to the settings.
-   */
-  public static final String GLBM_DEFAULT_TUNERCLASS = "handist.glb.multiworker.NoTuning";
 
   /**
    * Original value set to {@link #n} as dictated by setting parameter

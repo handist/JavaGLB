@@ -65,8 +65,10 @@ public final class GLBfactory {
     Tuner t = null;
     try {
       final String tuner = System.getProperty(Configuration.GLBM_TUNERCLASS,
-          Configuration.GLBM_DEFAULT_TUNERCLASS);
-      t = (Tuner) Class.forName(tuner).newInstance();
+          null);
+      if (tuner != null) {
+        t = (Tuner) Class.forName(tuner).newInstance();
+      }
     } catch (InstantiationException | IllegalAccessException
         | ClassNotFoundException e) {
       throw (e);

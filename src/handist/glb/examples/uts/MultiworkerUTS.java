@@ -436,9 +436,8 @@ public class MultiworkerUTS implements Bag<MultiworkerUTS, Sum>, Serializable {
       final Configuration conf = glb.getConfiguration();
 
       glb.compute(warmup, () -> new Sum(0), () -> new MultiworkerUTS(64));
-      System.out.println("UTS Depth: " + depth + " Places: " + conf.p
-          + " Work Unit: " + conf.n + " Concurrent Workers: " + conf.x
-          + " Random Steals: " + conf.w + " Lifeline Strategy: " + conf.z);
+      System.out.println("UTS Depth: " + depth + " " + conf);
+      System.err.println("UTS Depth: " + depth + " " + conf);
 
       for (int i = 0; i < repetitions; i++) {
         final MultiworkerUTS taskBag = new MultiworkerUTS(64);

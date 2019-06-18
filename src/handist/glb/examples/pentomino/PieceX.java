@@ -1,9 +1,21 @@
 /**
+ *  This file is part of the Handy Tools for Distributed Computing project
+ *  HanDist (https://github.com/handist)
  *
+ *  This file is licensed to You under the Eclipse Public License (EPL);
+ *  You may not use this file except in compliance with the License.
+ *  You may obtain a copy of the License at
+ *      http://www.opensource.org/licenses/eclipse-1.0.php
+ *
+ *  (C) copyright CS29 Fine 2018-2019.
  */
 package handist.glb.examples.pentomino;
 
+import java.util.Arrays;
+
 /**
+ * X pentomino
+ * 
  * @author Patrick Finnerty
  *
  */
@@ -12,17 +24,53 @@ public class PieceX extends Piece {
   /** Serial version UID */
   private static final long serialVersionUID = -5244591650743453450L;
 
+  /**
+   * Displays the piece variation
+   *
+   * @param args
+   *          not used
+   */
+  public static void main(String[] args) {
+    new PieceX(10, 6).printVariations(10);
+  }
+
   /** Variations of this piece */
   int[] first;
+
+  /**
+   * Builds the F piece with its variations
+   *
+   * @param width
+   *          width of the board played
+   * @param height
+   *          height of the board played
+   */
+  public PieceX(int width, int height) {
+    final int[] f = { 1, width, width + 1, width + 2, 2 * width + 1 };
+
+    first = f;
+
+  }
+
+  /**
+   * Copy constructor
+   *
+   * @param x
+   *          piece to copy
+   */
+  public PieceX(PieceX x) {
+    final int length = x.first.length;
+    first = Arrays.copyOf(x.first, length);
+  }
 
   /*
    * (non-Javadoc)
    *
-   * @see handist.glb.examples.pentomino.Piece#variations()
+   * @see handist.glb.examples.pentomino.Piece#copy()
    */
   @Override
-  public int variations() {
-    return 1;
+  public Piece copy() {
+    return new PieceX(this);
   }
 
   /*
@@ -50,28 +98,13 @@ public class PieceX extends Piece {
     }
   }
 
-  /**
-   * Builds the F piece with its variations
+  /*
+   * (non-Javadoc)
    *
-   * @param width
-   *          width of the board played
-   * @param height
-   *          height of the board played
+   * @see handist.glb.examples.pentomino.Piece#variations()
    */
-  public PieceX(int width, int height) {
-    final int[] f = { 1, width, width + 1, width + 2, 2 * width + 1 };
-
-    first = f;
-
-  }
-
-  /**
-   * Displays the piece variation
-   *
-   * @param args
-   *          not used
-   */
-  public static void main(String[] args) {
-    new PieceX(10, 6).printVariations(10);
+  @Override
+  public int variations() {
+    return 1;
   }
 }

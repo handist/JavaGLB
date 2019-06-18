@@ -1,11 +1,25 @@
 /**
+ *  This file is part of the Handy Tools for Distributed Computing project
+ *  HanDist (https://github.com/handist)
  *
+ *  This file is licensed to You under the Eclipse Public License (EPL);
+ *  You may not use this file except in compliance with the License.
+ *  You may obtain a copy of the License at
+ *      http://www.opensource.org/licenses/eclipse-1.0.php
+ *
+ *  (C) copyright CS29 Fine 2018-2019.
  */
 package handist.glb.examples.pentomino;
 
 import java.util.Arrays;
 
 /**
+ * Class implementing a pentomino board. Provides the services to attempt to
+ * place a piece and to remove pieces from the board.
+ * <p>
+ * This class is implemented using an array with sentinels on the right and the
+ * bottom of the board.
+ *
  * @author Patrick Finnerty
  *
  */
@@ -16,6 +30,9 @@ public class Board {
 
   /** Margin to the right side of the board */
   public static final int SENTINEL = 4;
+
+  /** Character used as sentinel in the {@link #board} array */
+  public static final char SENTINEL_CHAR = 's';
 
   /**
    * 1D array containing the lines of the board with some sentinel
@@ -31,20 +48,87 @@ public class Board {
   int height;
 
   /**
+   * Initializes a board with the given size. The product of the width and
+   * height arguments should be equal to 60.
+   *
+   * @param w
+   *          width of the pentomino board
+   * @param h
+   *          height of the pentomino board
+   */
+  public Board(int w, int h) {
+    // Prepare the board
+    width = w;
+    height = h;
+    board = new char[width * height + SENTINEL * height + width + SENTINEL];
+    Arrays.fill(board, EMPTY);
+    for (int i = 0; i < height; i++) {
+      final int sentinelStart = i * (width + SENTINEL) + width;
+      final int sentinelStop = i * (width + SENTINEL) + SENTINEL + width;
+      Arrays.fill(board, sentinelStart, sentinelStop, SENTINEL_CHAR);
+    }
+    Arrays.fill(board, (width + SENTINEL) * height, board.length,
+        SENTINEL_CHAR);
+
+  }
+
+  /**
    * Formats the board into a several line String fit for display on a terminal
    *
    * @return String presenting the board
    */
   public String boardToString() {
     String s = "";
-    for (int i = 0; i < height + 1; i++) {
-      for (int j = 0; j < width + SENTINEL; j++) {
+    for (int i = 0; i < height; i++) {
+      for (int j = 0; j < width; j++) {
         s += board[i * (width + SENTINEL) + j];
       }
       s += "\r\n";
     }
 
     return s;
+  }
+
+  /**
+   * Removes all the pieces from the board, restoring the instance to the
+   * condition it was in when created.
+   */
+  public void clear() {
+    Arrays.fill(board, EMPTY);
+    for (int i = 0; i < height; i++) {
+      final int sentinelStart = i * (width + SENTINEL) + width;
+      final int sentinelStop = i * (width + SENTINEL) + SENTINEL + width;
+      Arrays.fill(board, sentinelStart, sentinelStop, 's');
+    }
+    Arrays.fill(board, (width + SENTINEL) * height, board.length, 's');
+    nextIndex = 0;
+  }
+
+  /**
+   * Places a piece arbitrarily on the board at the specified index. No checks
+   * are made on the validity of such placement. It is assumed to be valid.
+   *
+   * @param piece
+   *          The piece to place on the board
+   * @param variation
+   *          the orientation of the piece to place
+   * @param index
+   *          the index at which the piece needs to be placed in array
+   *          {@link #board}
+   */
+  public void placeArbitrarily(Piece piece, int variation, int index) {
+    final int[] toPlace = piece.getVariation(variation);
+    final char c = piece.getChar();
+    final int offset = toPlace[0];
+
+    for (int i = 0; i < toPlace.length; i++) {
+      final int tileIndex = index + toPlace[i] - offset;
+      board[tileIndex] = c;
+    }
+
+    while (nextIndex < board.length && board[nextIndex] != EMPTY) {
+      nextIndex++;
+    }
   }
 
   /**
@@ -117,71 +201,6 @@ public class Board {
   @Override
   public String toString() {
     return boardToString();
-  }
-
-  /**
-   * Initializes a board with the given size. The product of the width and
-   * height should be equal to 60.
-   *
-   * @param w
-   *          width of the pentomino board
-   * @param h
-   *          height of the pentomino board
-   */
-  public Board(int w, int h) {
-    // Prepare the board
-    width = w;
-    height = h;
-    board = new char[width * height + SENTINEL * height + width + SENTINEL];
-    Arrays.fill(board, EMPTY);
-    for (int i = 0; i < height; i++) {
-      final int sentinelStart = i * (width + SENTINEL) + width;
-      final int sentinelStop = i * (width + SENTINEL) + SENTINEL + width;
-      Arrays.fill(board, sentinelStart, sentinelStop, 's');
-    }
-    Arrays.fill(board, (width + SENTINEL) * height, board.length, 's');
-
-  }
-
-  /**
-   * Removes all the pieces from the board, restoring the instance to the
-   * condition it was in when created.
-   */
-  public void clear() {
-    Arrays.fill(board, EMPTY);
-    for (int i = 0; i < height; i++) {
-      final int sentinelStart = i * (width + SENTINEL) + width;
-      final int sentinelStop = i * (width + SENTINEL) + SENTINEL + width;
-      Arrays.fill(board, sentinelStart, sentinelStop, 's');
-    }
-    Arrays.fill(board, (width + SENTINEL) * height, board.length, 's');
-    nextIndex = 0;
-  }
-
-  /**
-   * Places a piece arbitrarily on the board at the specified index. No checks
-   * are made on the validity of such placement. It is assumed to be valid.
-   *
-   * @param piece
-   *          The piece to place on the board
-   * @param variation
-   *          the orientation of the piece to place
-   * @param index
-   *          the index at which the piece needs to be placed in array
-   *          {@link #board}
-   */
-  public void placeArbitrarily(Piece piece, int variation, int index) {
-    final int[] toPlace = piece.getVariation(variation);
-    final char c = piece.getChar();
-
-    for (int i = 0; i < toPlace.length; i++) {
-      final int tileIndex = index + toPlace[i];
-      board[tileIndex] = c;
-    }
-
-    while (nextIndex < board.length && board[nextIndex] != EMPTY) {
-      nextIndex++;
-    }
   }
 
 }

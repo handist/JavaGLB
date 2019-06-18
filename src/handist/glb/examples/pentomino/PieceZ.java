@@ -1,9 +1,21 @@
 /**
+ *  This file is part of the Handy Tools for Distributed Computing project
+ *  HanDist (https://github.com/handist)
  *
+ *  This file is licensed to You under the Eclipse Public License (EPL);
+ *  You may not use this file except in compliance with the License.
+ *  You may obtain a copy of the License at
+ *      http://www.opensource.org/licenses/eclipse-1.0.php
+ *
+ *  (C) copyright CS29 Fine 2018-2019.
  */
 package handist.glb.examples.pentomino;
 
+import java.util.Arrays;
+
 /**
+ * Z pentomino
+ * 
  * @author Patrick Finnerty
  *
  */
@@ -12,18 +24,64 @@ public class PieceZ extends Piece {
   /** Serial version UID */
   private static final long serialVersionUID = -5244591650743453450L;
 
+  /**
+   * Displays the piece variation
+   *
+   * @param args
+   *          not used
+   */
+  public static void main(String[] args) {
+    new PieceZ(10, 6).printVariations(10);
+  }
+
   /** Variations of this piece */
   @SuppressWarnings("javadoc")
   int[] first, second, third, fourth;
 
+  /**
+   * Builds the F piece with its variations
+   *
+   * @param width
+   *          width of the board played
+   * @param height
+   *          height of the board played
+   */
+  public PieceZ(int width, int height) {
+    final int[] f = { 0, 1, width + 1, 2 * width + 1, 2 * width + 2 };
+    final int[] s = { 2, width, width + 1, width + 2, 2 * width };
+
+    final int[] t = { 1, 2, width + 1, 2 * width, 2 * width + 1 };
+    final int[] fo = { 0, width, width + 1, width + 2, 2 * width + 2 };
+
+    first = f;
+    second = s;
+    third = t;
+    fourth = fo;
+
+  }
+
+  /**
+   * Copy constructor
+   *
+   * @param z
+   *          piece to copy
+   */
+  public PieceZ(PieceZ z) {
+    final int length = z.first.length;
+    first = Arrays.copyOf(z.first, length);
+    second = Arrays.copyOf(z.second, length);
+    third = Arrays.copyOf(z.third, length);
+    fourth = Arrays.copyOf(z.fourth, length);
+  }
+
   /*
    * (non-Javadoc)
    *
-   * @see handist.glb.examples.pentomino.Piece#variations()
+   * @see handist.glb.examples.pentomino.Piece#copy()
    */
   @Override
-  public int variations() {
-    return 4;
+  public Piece copy() {
+    return new PieceZ(this);
   }
 
   /*
@@ -57,35 +115,13 @@ public class PieceZ extends Piece {
     }
   }
 
-  /**
-   * Builds the F piece with its variations
+  /*
+   * (non-Javadoc)
    *
-   * @param width
-   *          width of the board played
-   * @param height
-   *          height of the board played
+   * @see handist.glb.examples.pentomino.Piece#variations()
    */
-  public PieceZ(int width, int height) {
-    final int[] f = { 0, 1, width + 1, 2 * width + 1, 2 * width + 2 };
-    final int[] s = { 2, width, width + 1, width + 2, 2 * width };
-
-    final int[] t = { 1, 2, width + 1, 2 * width, 2 * width + 1 };
-    final int[] fo = { 0, width, width + 1, width + 2, 2 * width + 2 };
-
-    first = f;
-    second = s;
-    third = t;
-    fourth = fo;
-
-  }
-
-  /**
-   * Displays the piece variation
-   *
-   * @param args
-   *          not used
-   */
-  public static void main(String[] args) {
-    new PieceZ(10, 6).printVariations(10);
+  @Override
+  public int variations() {
+    return 4;
   }
 }

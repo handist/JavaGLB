@@ -11,6 +11,7 @@
  */
 package handist.glb.examples.pentomino;
 
+import handist.glb.examples.pentomino.Pentomino.PentominoType;
 import handist.glb.multiworker.GLBcomputer;
 import handist.glb.multiworker.GLBfactory;
 
@@ -45,10 +46,10 @@ public class ParallelPentomino {
 
     System.out.println(computer.getConfiguration());
 
-    final Pentomino p = new Pentomino(width, height);
-    p.init();
+    final Pentomino p = new Pentomino(PentominoType.STANDARD, width, height);
+    p.init(PentominoType.STANDARD);
     final Answer ans = computer.compute(p, () -> new Answer(),
-        () -> new Pentomino(width, height));
+        () -> new Pentomino(PentominoType.STANDARD, width, height));
 
     System.out.println(
         "Solution to H:" + height + " W:" + width + "  " + ans.solutions);

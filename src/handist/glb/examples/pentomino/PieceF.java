@@ -11,8 +11,6 @@
  */
 package handist.glb.examples.pentomino;
 
-import java.util.Arrays;
-
 /**
  * F pentomino
  *
@@ -31,22 +29,25 @@ public class PieceF extends Piece {
    *          not used
    */
   public static void main(String[] args) {
-    new PieceF(10, 6).printVariations(10);
+    new PieceF(PieceType.STANDARD, 10).printVariations(10);
   }
 
   /** Variations of this piece */
   @SuppressWarnings("javadoc")
   int[] first, second, third, fourth, fifth, sixth, seventh, eigth;
 
+  /** Number of variations of this piece */
+  int vars = 8;
+
   /**
    * Builds the F piece with its variations
    *
+   * @param type
+   *          type of the piece to create
    * @param width
    *          width of the board played
-   * @param height
-   *          height of the board played
    */
-  public PieceF(int width, int height) {
+  public PieceF(PieceType type, final int width) {
     final int[] f = { 1, 2, width, width + 1, (2 * width) + 1 };
     final int[] s = { 0, width, width + 1, width + 2, (2 * width) + 1 };
 
@@ -57,37 +58,34 @@ public class PieceF extends Piece {
     final int[] se = { 1, width, width + 1, (2 * width) + 1, (2 * width) + 2 };
     final int[] e = { 1, width, width + 1, width + 2, 2 * width };
 
-    first = f;
-    second = s;
-    third = t;
-    fourth = fo;
-    fifth = fi;
-    sixth = si;
-    seventh = se;
-    eigth = e;
-  }
-
-  private PieceF(PieceF f) {
-    final int length = f.first.length;
-    first = Arrays.copyOf(f.first, length);
-    second = Arrays.copyOf(f.second, length);
-    third = Arrays.copyOf(f.third, length);
-    fourth = Arrays.copyOf(f.fourth, length);
-    fifth = Arrays.copyOf(f.fifth, length);
-    sixth = Arrays.copyOf(f.sixth, length);
-    seventh = Arrays.copyOf(f.seventh, length);
-    eigth = Arrays.copyOf(f.eigth, length);
-  }
-
-  /*
-   * (non-Javadoc)
-   *
-   * @see handist.glb.examples.pentomino.Piece#copy()
-   */
-  @Override
-  public Piece copy() {
-    return new PieceF(this);
-
+    switch (type) {
+    case STANDARD:
+      first = f;
+      second = s;
+      third = t;
+      fourth = fo;
+      fifth = fi;
+      sixth = si;
+      seventh = se;
+      eigth = e;
+      break;
+    case UPSIDE:
+      first = f;
+      second = s;
+      third = t;
+      fourth = fo;
+      break;
+    case FLIPSIDE:
+      first = fi;
+      second = si;
+      third = se;
+      fourth = e;
+      break;
+    default:
+    }
+    if (type != PieceType.STANDARD) {
+      vars = 4;
+    }
   }
 
   /*
@@ -136,6 +134,6 @@ public class PieceF extends Piece {
    */
   @Override
   public int variations() {
-    return 8;
+    return vars;
   }
 }

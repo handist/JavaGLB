@@ -16,6 +16,7 @@ import java.util.Arrays;
 import java.util.Deque;
 import java.util.LinkedList;
 
+import handist.glb.examples.pentomino.Piece.PieceType;
 import handist.glb.multiworker.Bag;
 
 /**
@@ -56,7 +57,7 @@ public class Pentomino implements Bag<Pentomino, Answer>, Serializable {
      * 18 pieces Pentomino with the upside-down pieces as pieces rather than
      * variations of a piece
      */
-    UPSIDE
+    ONE_SIDED
   };
 
   /**
@@ -97,13 +98,6 @@ public class Pentomino implements Bag<Pentomino, Answer>, Serializable {
   private static final long serialVersionUID = 6033611157974969906L;
 
   /**
-   * Indicates the number of pieces that actually need to be placed by the
-   * pentomino algorithm. As we arbitrarily place pieceX at the beginning of the
-   * computation, the total number of pieces to place is reduced from 12 to 11.
-   */
-  public final int NB_PIECE;
-
-  /**
    * Launches a sequential Pentomino exploration with the board of the specified
    * width and height. If no argument is specified, W10H6 is used as the default
    * board.
@@ -114,21 +108,29 @@ public class Pentomino implements Bag<Pentomino, Answer>, Serializable {
    */
   public static void main(String[] args) {
     int WIDTH = 10, HEIGHT = 6;
+    boolean symmetriesOff = true;
+    PentominoType type;
     try {
       WIDTH = Integer.parseInt(args[0]);
       HEIGHT = Integer.parseInt(args[1]);
+      symmetriesOff = Boolean.parseBoolean(args[2]);
     } catch (final Exception e) {
-      System.err.println(
-          "Error parsing arguments, using H=" + HEIGHT + " W=" + WIDTH);
+      System.err.println("Error parsing arguments W H symmetriesRemoval");
+      return;
     }
 
-    if (WIDTH * HEIGHT != 60 || WIDTH < HEIGHT) {
+    final int surface = WIDTH * HEIGHT;
+    if (surface == 60) {
+      type = PentominoType.STANDARD;
+    } else if (surface == 90) {
+      type = PentominoType.ONE_SIDED;
+    } else {
       System.err.println("Wrong board size: H=" + HEIGHT + " W=" + WIDTH);
       return;
     }
 
-    final Pentomino p = new Pentomino(PentominoType.STANDARD, WIDTH, HEIGHT);
-    p.init(PentominoType.STANDARD);
+    final Pentomino p = new Pentomino(type, WIDTH, HEIGHT);
+    p.init(type, symmetriesOff);
 
     long duration = System.nanoTime();
     p.toCompletion();
@@ -141,8 +143,15 @@ public class Pentomino implements Bag<Pentomino, Answer>, Serializable {
 
   }
 
+  /**
+   * Indicates the number of pieces that actually need to be placed by the
+   * pentomino algorithm. As we arbitrarily place pieceX at the beginning of the
+   * computation, the total number of pieces to place is reduced from 12 to 11.
+   */
+  public final int NB_PIECE;
+
   /** Counter for the number of nodes in the search tree */
-  long treeNode = 0;
+  transient long treeNode = 0;
 
   /**
    * Counter of the number of solutions found. Is incremented during the
@@ -179,14 +188,26 @@ public class Pentomino implements Bag<Pentomino, Answer>, Serializable {
   transient PieceP P;
 
   /**
+   * PieceP instance which is kept as a member for easy access when removing
+   * variations of the piece when extra symmetries is needed.
+   */
+  transient PieceV V;
+
+  /**
    * Reserve of different explorations kept aside
    */
   transient Deque<Pentomino> reserve;
 
   /**
    * Indicates of the current instance needs additional restrictions on symmetry
+   * In the case of {@value PentominoType#ONE_SIDED}, value 0 indicates no need
+   * for extra symmetry, -1 indicates need for removal of horizontal symmetries
+   * and 1 indicates need for removal of vertical symmetries.
    */
-  boolean additionalSymmetryRestriction = false;
+  int additionalSymmetryRestriction = 0;
+
+  /** Indicates what kind of problem this instance is */
+  PentominoType pentominoType;
 
   /**
    * Array containing all the pieces that we try to place on the board
@@ -249,6 +270,7 @@ public class Pentomino implements Bag<Pentomino, Answer>, Serializable {
    *          height of the rectangle in which to fit the pieces
    */
   public Pentomino(PentominoType type, int w, int h) {
+    pentominoType = type;
     width = w;
     height = h;
 
@@ -260,7 +282,7 @@ public class Pentomino implements Bag<Pentomino, Answer>, Serializable {
     case STANDARD:
       NB_PIECE = 12;
       break;
-    case UPSIDE:
+    case ONE_SIDED:
       NB_PIECE = 18;
       break;
     default:
@@ -271,32 +293,13 @@ public class Pentomino implements Bag<Pentomino, Answer>, Serializable {
   }
 
   /**
-   * @param type
-   */
-  private void initPieces(PentominoType type) {
-    pieces = new Piece[NB_PIECE];
-
-    pieces[0] = new PieceI(width + Board.SENTINEL, height);
-
-    pieces[1] = new PieceU(width + Board.SENTINEL, height);
-    pieces[2] = new PieceT(width + Board.SENTINEL, height);
-    pieces[3] = new PieceF(width + Board.SENTINEL, height);
-    pieces[4] = new PieceY(width + Board.SENTINEL, height);
-    pieces[5] = new PieceZ(width + Board.SENTINEL, height);
-    pieces[6] = new PieceL(width + Board.SENTINEL, height);
-    pieces[7] = new PieceN(width + Board.SENTINEL, height);
-    pieces[8] = new PieceW(width + Board.SENTINEL, height);
-    pieces[9] = new PieceV(width + Board.SENTINEL, height);
-    P = new PieceP(width + Board.SENTINEL, height);
-    pieces[10] = P;
-    pieces[11] = new PieceX(width + Board.SENTINEL, height);
-  }
-
-  /**
-   * Retrieves the index pieceplace that remains to be placed on the board
+   * Retrieves the index in array {@link PiecePlaced} of the n'th piece that
+   * remains to be placed on the board
    *
-   * @param index
-   * @return
+   * @param n
+   *          the number of the piece among those that remain to be found
+   * @return the index of the n'th piece in array {@link #placement} and
+   *         {@link #pieces}
    */
   private int getRemaining(int index) {
     PiecePlaced pp;
@@ -319,6 +322,11 @@ public class Pentomino implements Bag<Pentomino, Answer>, Serializable {
    */
   protected Pentomino getTransferPentomino() {
     final Pentomino p = new Pentomino(NB_PIECE);
+    if (NB_PIECE == 12) {
+      p.pentominoType = PentominoType.STANDARD;
+    } else {
+      p.pentominoType = PentominoType.ONE_SIDED;
+    }
 
     p.placement = new PiecePlaced[NB_PIECE];
     for (int i = 0; i < NB_PIECE; i++) {
@@ -343,45 +351,158 @@ public class Pentomino implements Bag<Pentomino, Answer>, Serializable {
    *
    * @param type
    *          type of the pentomino at hand
+   * @param noSymmetries
+   *          indicates if the symmetry removal should be applied or not
    */
-  public void init(PentominoType type) {
-    if (type == PentominoType.STANDARD) {
+  public void init(PentominoType type, boolean noSymmetries) {
+    if (noSymmetries) {
+      if (type == PentominoType.STANDARD) {
+        for (int i = 0; i < (height - 1) / 2; i++) {
+          for (int j = 0; j < (width - 1) / 2; j++) {
+            // Generate Pentomino instances with pieceX in (j,i) coordinates
 
-      for (int i = 0; i < (height - 1) / 2; i++) {
-        for (int j = 0; j < (width - 1) / 2; j++) {
-          // Generate Pentomino instances with pieceX in (j,i) coordinates
+            final int placementIndex = i * (width + Board.SENTINEL) + j;
+            if (placementIndex != 0) {
+              final Pentomino p = getTransferPentomino();
 
-          final int placementIndex = i * (width + Board.SENTINEL) + j;
-          if (placementIndex != 0) {
-            final Pentomino p = getTransferPentomino();
+              final PiecePlaced Xplacement = p.placement[11];
 
-            final PiecePlaced Xplacement = p.placement[11];
+              Xplacement.index = placementIndex + 1;
+              Xplacement.variation = 0;
+              p.stack[0] = 11;
+              p.depth = 1;
+              p.lowPiece[0] = 1;
+              p.highPiece[0] = 1;
+              p.lowPosition[0] = 1;
+              p.highPosition[0] = 1;
+              p.lowPiece[1] = 0;
+              p.highPiece[1] = 11;
 
-            Xplacement.index = placementIndex + 1;
-            Xplacement.variation = 0;
-            p.stack[0] = 11;
-            p.depth = 1;
-            p.lowPiece[0] = 1;
-            p.highPiece[0] = 1;
-            p.lowPosition[0] = 1;
-            p.highPosition[0] = 1;
-            p.lowPiece[1] = 0;
-            p.highPiece[1] = 11;
+              // Remove additional symmetry in cases where PieceX is placed on
+              // the
+              // center column or the center line
+              if ((height % 2 == 1 && i + 1 == (height - 1) / 2)
+                  || (width % 2 == 1 && j + 1 == (width - 1) / 2)) {
+                p.additionalSymmetryRestriction = 1;
+              }
 
-            // Remove additional symmetry in cases where PieceX is placed on the
-            // center column or the center line
-            if ((height % 2 == 1 && i + 1 == (height - 1) / 2)
-                || (width % 2 == 1 && j == (width - 1) / 2)) {
-              p.additionalSymmetryRestriction = true;
+              putInReserve(p);
             }
-
-            putInReserve(p);
           }
         }
+
+      } else if (type == PentominoType.ONE_SIDED) {
+
+        for (int i = 0; i < (height - 1) / 2; i++) {
+          for (int j = 0; j < (width - 1) / 2; j++) {
+            // Generate Pentomino instances with pieceX in (j,i) coordinates
+
+            final int placementIndex = i * (width + Board.SENTINEL) + j;
+            if (placementIndex != 0) {
+              final Pentomino p = getTransferPentomino();
+
+              final PiecePlaced Xplacement = p.placement[2];
+
+              Xplacement.index = placementIndex + 1;
+              Xplacement.variation = 0;
+              p.stack[0] = 2;
+              p.depth = 1;
+              p.lowPiece[0] = 1;
+              p.highPiece[0] = 1;
+              p.lowPosition[0] = 1;
+              p.highPosition[0] = 1;
+              p.lowPiece[1] = 0;
+              p.highPiece[1] = 17;
+
+              // Remove additional symmetry in cases where PieceX is placed on
+              // the
+              // center column or the center line
+              if (height % 2 == 1 && i + 1 == (height - 1) / 2) {
+                // Horizontal symmetry needs to be removed
+                p.additionalSymmetryRestriction = 1;
+              } else if ((width % 2 == 1 && j + 1 == (width - 1) / 2)) {
+                // Vertical symmetry needs to be removed
+                p.additionalSymmetryRestriction = -1;
+              }
+
+              putInReserve(p);
+            }
+          }
+        }
+
       }
-    } else if (type == PentominoType.UPSIDE) {
+    } else {
+      // Does the full exploration
+      final Pentomino p = getTransferPentomino();
+      p.highPiece[0] = NB_PIECE;
+      p.additionalSymmetryRestriction = 0;
+      putInReserve(p);
+    }
+  }
+
+  /**
+   * Initializes the {@link #pieces} array with the pieces that are relevant to
+   * the pentomino problem
+   *
+   * @param type
+   *          type of the pentomino to build
+   */
+  private void initPieces(PentominoType type) {
+    pieces = new Piece[NB_PIECE]; // NB_PIECE is assumed to be set to the
+                                  // correct value
+    switch (type) {
+    case STANDARD:
+      pieces[0] = new PieceI(width + Board.SENTINEL, height);
+      pieces[1] = new PieceU(width + Board.SENTINEL);
+      pieces[2] = new PieceT(width + Board.SENTINEL);
+      pieces[3] = new PieceF(PieceType.STANDARD, width + Board.SENTINEL);
+      pieces[4] = new PieceY(PieceType.STANDARD, width + Board.SENTINEL,
+          height);
+      pieces[5] = new PieceZ(PieceType.STANDARD, width + Board.SENTINEL);
+      pieces[6] = new PieceL(PieceType.STANDARD, width + Board.SENTINEL,
+          height);
+      pieces[7] = new PieceN(PieceType.STANDARD, width + Board.SENTINEL,
+          height);
+      pieces[8] = new PieceW(width + Board.SENTINEL);
+      pieces[9] = new PieceV(width + Board.SENTINEL);
+      P = new PieceP(PieceType.STANDARD, width + Board.SENTINEL);
+      pieces[10] = P;
+      pieces[11] = new PieceX(width + Board.SENTINEL);
+      break;
+    case ONE_SIDED:
+      // Symmetric pieces wrt flip
+      pieces[0] = new PieceI(width + Board.SENTINEL, height);
+      pieces[1] = new PieceU(width + Board.SENTINEL);
+      pieces[2] = new PieceX(width + Board.SENTINEL);
+      pieces[3] = new PieceT(width + Board.SENTINEL);
+      pieces[4] = new PieceW(width + Board.SENTINEL);
+      V = new PieceV(width + Board.SENTINEL);
+      pieces[5] = V;
+
+      // upside pieces
+      pieces[6] = new PieceP(PieceType.UPSIDE, width + Board.SENTINEL);
+      pieces[7] = new PieceF(PieceType.UPSIDE, width + Board.SENTINEL);
+      pieces[8] = new PieceY(PieceType.UPSIDE, width + Board.SENTINEL, height);
+      pieces[9] = new PieceZ(PieceType.UPSIDE, width + Board.SENTINEL);
+      pieces[10] = new PieceL(PieceType.UPSIDE, width + Board.SENTINEL, height);
+      pieces[11] = new PieceN(PieceType.UPSIDE, width + Board.SENTINEL, height);
+
+      // flipside pieces
+      pieces[12] = new PieceF(PieceType.FLIPSIDE, width + Board.SENTINEL);
+      pieces[13] = new PieceY(PieceType.FLIPSIDE, width + Board.SENTINEL,
+          height);
+      pieces[14] = new PieceZ(PieceType.FLIPSIDE, width + Board.SENTINEL);
+      pieces[15] = new PieceL(PieceType.FLIPSIDE, width + Board.SENTINEL,
+          height);
+      pieces[16] = new PieceN(PieceType.FLIPSIDE, width + Board.SENTINEL,
+          height);
+      pieces[17] = new PieceP(PieceType.FLIPSIDE, width + Board.SENTINEL);
+      break;
+    default:
+      break;
 
     }
+
   }
 
   /*
@@ -689,10 +810,20 @@ public class Pentomino implements Bag<Pentomino, Answer>, Serializable {
       board.placeArbitrarily(pieceToPlace, pp.variation, pp.index);
     }
 
-    if (p.additionalSymmetryRestriction) {
-      P.vars = 4;
-    } else {
-      P.vars = 8;
+    if (pentominoType == PentominoType.STANDARD) {
+      if (p.additionalSymmetryRestriction == 1) {
+        P.vars = 4;
+      } else {
+        P.vars = 8;
+      }
+    } else if (pentominoType == PentominoType.STANDARD) {
+      if (p.additionalSymmetryRestriction > 0) {
+        V.removeVerticalSymmetry();
+      } else if (p.additionalSymmetryRestriction < 0) {
+        V.removeHorizontalSymmetry();
+      } else {
+        V.reset();
+      }
     }
   }
 

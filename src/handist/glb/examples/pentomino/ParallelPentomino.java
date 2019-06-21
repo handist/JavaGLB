@@ -33,12 +33,14 @@ public class ParallelPentomino {
   public static void main(String[] args) {
     int width;
     int height;
+    boolean symmetriesOff = true;
+
     final GLBcomputer computer;
     try {
       computer = GLBfactory.setupGLB();
       width = Integer.parseInt(args[0]);
       height = Integer.parseInt(args[1]);
-
+      symmetriesOff = Boolean.parseBoolean(args[2]);
     } catch (final Exception e) {
       e.printStackTrace();
       return;
@@ -47,13 +49,20 @@ public class ParallelPentomino {
     System.out.println(computer.getConfiguration());
 
     final Pentomino p = new Pentomino(PentominoType.STANDARD, width, height);
-    p.init(PentominoType.STANDARD);
+    p.init(PentominoType.STANDARD, symmetriesOff);
+
+    int counter = 0;
+    for (final Piece piece : p.pieces) {
+      piece.printVariations(width + Board.SENTINEL);
+      counter += piece.variations();
+    }
+    System.err.println(counter);
     final Answer ans = computer.compute(p, () -> new Answer(),
         () -> new Pentomino(PentominoType.STANDARD, width, height));
 
     System.out.println(
         "Solution to H:" + height + " W:" + width + "  " + ans.solutions);
-    System.out.println("Tree nodes:" + p.treeNode);
+    System.out.println("Tree nodes:" + ans.nodes);
     computer.getLog().print(System.out);
   }
 }

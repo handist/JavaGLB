@@ -25,6 +25,21 @@ public abstract class Piece implements Comparable<Piece>, Serializable {
   private static final long serialVersionUID = 335315376773627613L;
 
   /**
+   * Enumerator for the various ways a Piece may be used
+   *
+   * @author Patrick Finnerty
+   *
+   */
+  public enum PieceType {
+    /** Standard Pentomino piece */
+    STANDARD,
+    /** Piece of the pentomino with only the face up variations */
+    UPSIDE,
+    /** Piece of the pentomino with only the upside-down positions */
+    FLIPSIDE
+  }
+
+  /**
    * Returns a printable String that represents the piece.
    *
    * @param a
@@ -79,8 +94,9 @@ public abstract class Piece implements Comparable<Piece>, Serializable {
    * Returns a brand new copy of the Piece instance
    *
    * @return a copy of the piece on which this instance is called
+   *
+   *         public abstract Piece copy();
    */
-  public abstract Piece copy();
 
   /**
    * Gives a character used to describe the piece

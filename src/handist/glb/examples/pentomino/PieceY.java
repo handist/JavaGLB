@@ -11,11 +11,9 @@
  */
 package handist.glb.examples.pentomino;
 
-import java.util.Arrays;
-
 /**
  * Y pentomino
- * 
+ *
  * @author Patrick Finnerty
  *
  */
@@ -31,68 +29,82 @@ public class PieceY extends Piece {
    *          not used
    */
   public static void main(String[] args) {
-    new PieceY(10, 6).printVariations(10);
+    System.out.println("Large board");
+    System.out.println("Standard");
+    new PieceY(PieceType.STANDARD, 10, 6).printVariations(10);
+    System.out.println("Upside");
+    new PieceY(PieceType.UPSIDE, 15, 6).printVariations(15);
+    System.out.println("Flipside");
+    new PieceY(PieceType.FLIPSIDE, 15, 6).printVariations(15);
+    System.out.println("Shallow board");
+    System.out.println("Standard");
+    new PieceY(PieceType.STANDARD, 20, 3).printVariations(20);
+    System.out.println("Upside");
+    new PieceY(PieceType.UPSIDE, 30, 3).printVariations(30);
+    System.out.println("Flipside");
+    new PieceY(PieceType.FLIPSIDE, 30, 3).printVariations(30);
   }
 
   /** Variations of this piece */
   @SuppressWarnings("javadoc")
   int[] first, second, third, fourth, fifth, sixth, seventh, eigth;
 
+  /** Number of piece variations */
+  int vars = 8;
+
   /**
    * Builds the F piece with its variations
    *
+   * @param type
+   *          type of the piece to create
    * @param width
    *          width of the board played
    * @param height
    *          height of the board played
-   */
-  public PieceY(int width, int height) {
-    final int[] f = { 0, 1, 2, 3, width + 1 };
-    final int[] s = { 0, width, 2 * width, 2 * width + 1, 3 * width };
-
-    final int[] t = { 2, width, width + 1, width + 2, width + 3 };
-    final int[] fo = { 1, width, width + 1, 2 * width + 1, 3 * width + 1 };
-    final int[] fi = { 1, width, width + 1, width + 2, width + 3 };
-    final int[] si = { 0, width, width + 1, 2 * width, 3 * width };
-    final int[] se = { 0, 1, 2, 3, width + 2 };
-    final int[] e = { 1, width + 1, 2 * width, 2 * width + 1, 3 * width + 1 };
-
-    first = f;
-    second = s;
-    third = t;
-    fourth = fo;
-    fifth = fi;
-    sixth = si;
-    seventh = se;
-    eigth = e;
-  }
-
-  /**
-   * Copy constructor
    *
-   * @param y
-   *          instance to copy
    */
-  public PieceY(PieceY y) {
-    final int length = y.first.length;
-    first = Arrays.copyOf(y.first, length);
-    second = Arrays.copyOf(y.second, length);
-    third = Arrays.copyOf(y.third, length);
-    fourth = Arrays.copyOf(y.fourth, length);
-    fifth = Arrays.copyOf(y.fifth, length);
-    sixth = Arrays.copyOf(y.sixth, length);
-    seventh = Arrays.copyOf(y.seventh, length);
-    eigth = Arrays.copyOf(y.eigth, length);
-  }
+  public PieceY(PieceType type, int width, int height) {
+    final int[] a = { 0, 1, 2, 3, width + 1 };
+    final int[] b = { 0, width, 2 * width, 2 * width + 1, 3 * width };
 
-  /*
-   * (non-Javadoc)
-   *
-   * @see handist.glb.examples.pentomino.Piece#copy()
-   */
-  @Override
-  public Piece copy() {
-    return new PieceY(this);
+    final int[] c = { 2, width, width + 1, width + 2, width + 3 };
+    final int[] d = { 1, width, width + 1, 2 * width + 1, 3 * width + 1 };
+    final int[] e = { 1, width, width + 1, width + 2, width + 3 };
+    final int[] f = { 0, width, width + 1, 2 * width, 3 * width };
+    final int[] g = { 0, 1, 2, 3, width + 2 };
+    final int[] h = { 1, width + 1, 2 * width, 2 * width + 1, 3 * width + 1 };
+
+    switch (type) {
+    case STANDARD:
+      first = a;
+      second = c;
+      third = e;
+      fourth = g;
+      fifth = b;
+      sixth = d;
+      seventh = f;
+      eigth = h;
+      break;
+    case UPSIDE:
+      first = a;
+      second = c;
+      third = b;
+      fourth = d;
+      break;
+    case FLIPSIDE:
+      first = e;
+      second = g;
+      third = f;
+      fourth = h;
+      break;
+    default:
+    }
+    if (type != PieceType.STANDARD) {
+      vars = 4;
+    }
+    if (height < 4) {
+      vars /= 2;
+    }
   }
 
   /*
@@ -141,6 +153,6 @@ public class PieceY extends Piece {
    */
   @Override
   public int variations() {
-    return 8;
+    return vars;
   }
 }

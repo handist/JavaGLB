@@ -81,7 +81,7 @@ public class Board {
     String s = "";
     for (int i = 0; i < height; i++) {
       for (int j = 0; j < width; j++) {
-        s += board[i * (width + SENTINEL) + j];
+        s += board[i * (width + SENTINEL) + j] + " ";
       }
       s += "\r\n";
     }

@@ -11,11 +11,9 @@
  */
 package handist.glb.examples.pentomino;
 
-import java.util.Arrays;
-
 /**
  * I pentomino
- * 
+ *
  * @author Patrick Finnerty
  *
  */
@@ -31,50 +29,36 @@ public class PieceI extends Piece {
    *          not used
    */
   public static void main(String[] args) {
+    System.out.println("Regular board");
     new PieceI(10, 6).printVariations(10);
+    System.out.println("Shallow board");
+    new PieceI(15, 3).printVariations(15);
   }
 
   /** Variations of this piece */
   @SuppressWarnings("javadoc")
   int[] first, second;
 
+  /** Variations of the piece I */
+  int vars = 2;
+
   /**
    * Builds the F piece with its variations
    *
    * @param width
-   *          width of the board played
+   *          width of the board played, including sentinels
    * @param height
    *          height of the board played
    */
   public PieceI(int width, int height) {
-    final int[] f = { 0, 1, 2, 3, 4 };
-    final int[] s = { 0, width, 2 * width, 3 * width, 4 * width };
+    final int[] h = { 0, 1, 2, 3, 4 };
+    final int[] v = { 0, width, 2 * width, 3 * width, 4 * width };
 
-    first = f;
-    second = s;
-
-  }
-
-  /**
-   * Copy constructor
-   *
-   * @param i
-   *          original of which a copy needs to be constructed
-   */
-  public PieceI(PieceI i) {
-    final int length = i.first.length;
-    first = Arrays.copyOf(i.first, length);
-    second = Arrays.copyOf(i.second, length);
-  }
-
-  /*
-   * (non-Javadoc)
-   *
-   * @see handist.glb.examples.pentomino.Piece#copy()
-   */
-  @Override
-  public Piece copy() {
-    return new PieceI(this);
+    first = h;
+    second = v;
+    if (height < 5) {
+      vars /= 2;
+    }
   }
 
   /*
@@ -111,6 +95,6 @@ public class PieceI extends Piece {
    */
   @Override
   public int variations() {
-    return 2;
+    return vars;
   }
 }

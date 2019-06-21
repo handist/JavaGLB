@@ -11,11 +11,9 @@
  */
 package handist.glb.examples.pentomino;
 
-import java.util.Arrays;
-
 /**
  * U pentomino
- * 
+ *
  * @author Patrick Finnerty
  *
  */
@@ -31,7 +29,7 @@ public class PieceU extends Piece {
    *          not used
    */
   public static void main(String[] args) {
-    new PieceU(10, 6).printVariations(10);
+    new PieceU(10).printVariations(10);
   }
 
   /** Variations of this piece */
@@ -43,10 +41,8 @@ public class PieceU extends Piece {
    *
    * @param width
    *          width of the board played
-   * @param height
-   *          height of the board played
    */
-  public PieceU(int width, int height) {
+  public PieceU(int width) {
     final int[] f = { 0, 2, width, width + 1, width + 2 };
     final int[] s = { 0, 1, width + 1, 2 * width, 2 * width + 1 };
 
@@ -58,30 +54,6 @@ public class PieceU extends Piece {
     third = t;
     fourth = fo;
 
-  }
-
-  /**
-   * Copy constructor
-   *
-   * @param u
-   *          piece to copy
-   */
-  public PieceU(PieceU u) {
-    final int length = u.first.length;
-    first = Arrays.copyOf(u.first, length);
-    second = Arrays.copyOf(u.second, length);
-    third = Arrays.copyOf(u.third, length);
-    fourth = Arrays.copyOf(u.fourth, length);
-  }
-
-  /*
-   * (non-Javadoc)
-   *
-   * @see handist.glb.examples.pentomino.Piece#copy()
-   */
-  @Override
-  public Piece copy() {
-    return new PieceU(this);
   }
 
   /*

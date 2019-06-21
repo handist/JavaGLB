@@ -11,8 +11,6 @@
  */
 package handist.glb.examples.pentomino;
 
-import java.util.Arrays;
-
 /**
  * V pentomino
  *
@@ -31,57 +29,45 @@ public class PieceV extends Piece {
    *          not used
    */
   public static void main(String[] args) {
-    new PieceV(10, 6).printVariations(10);
+    final PieceV V = new PieceV(10);
+    V.printVariations(10);
+    V.removeHorizontalSymmetry();
+    V.printVariations(10);
+    V.removeVerticalSymmetry();
+    V.printVariations(10);
+    V.reset();
+
   }
 
   /** Variations of this piece */
   @SuppressWarnings("javadoc")
-  int[] first, second, third, fourth;
+  int[] UL, DL, UR, DR, first, second, third, fourth;
+
+  /** Number of variations of the piece */
+  int vars = 4;
 
   /**
    * Builds the F piece with its variations
    *
    * @param width
    *          width of the board played
-   * @param height
-   *          height of the board played
    */
-  public PieceV(int width, int height) {
+  public PieceV(int width) {
     final int[] f = { 0, 1, 2, width, 2 * width };
     final int[] s = { 0, width, 2 * width, 2 * width + 1, 2 * width + 2 };
 
-    final int[] t = { 2, width + 2, 2 * width, 2 * width + 1, 2 * width + 2 };
-    final int[] fo = { 0, 1, 2, width + 2, 2 * width + 2 };
+    final int[] t = { 0, 1, 2, width + 2, 2 * width + 2 };
+    final int[] fo = { 2, width + 2, 2 * width, 2 * width + 1, 2 * width + 2 };
 
-    first = f;
-    second = s;
-    third = t;
-    fourth = fo;
+    UL = f;
+    DL = s;
+    UR = t;
+    DR = fo;
+    first = UL;
+    second = DL;
+    third = UR;
+    fourth = DR;
 
-  }
-
-  /**
-   * Copy constructor
-   *
-   * @param v
-   *          instance to copy
-   */
-  public PieceV(PieceV v) {
-    final int length = v.first.length;
-    first = Arrays.copyOf(v.first, length);
-    second = Arrays.copyOf(v.second, length);
-    third = Arrays.copyOf(v.third, length);
-    fourth = Arrays.copyOf(v.fourth, length);
-  }
-
-  /*
-   * (non-Javadoc)
-   *
-   * @see handist.glb.examples.pentomino.Piece#copy()
-   */
-  @Override
-  public Piece copy() {
-    return new PieceV(this);
   }
 
   /*
@@ -122,6 +108,38 @@ public class PieceV extends Piece {
    */
   @Override
   public int variations() {
-    return 4;
+    return vars;
+  }
+
+  /**
+   * Removes vertical variations from the V piece in case symmetries
+   */
+  public void removeVerticalSymmetry() {
+    first = UL;
+    second = DL;
+    vars = 2;
+  }
+
+  /**
+   *
+   */
+  public void removeHorizontalSymmetry() {
+    vars = 2;
+    first = UL;
+    second = UR;
+
+  }
+
+  /**
+   * Puts all the variations back into the piece after a potential call to
+   * method {@link #removeHorizontalSymmetry()} or
+   * {@link #removeVerticalSymmetry()}.
+   */
+  public void reset() {
+    first = UL;
+    second = DL;
+    third = UR;
+    fourth = DR;
+    vars = 4;
   }
 }

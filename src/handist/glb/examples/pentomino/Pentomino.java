@@ -116,11 +116,12 @@ public class Pentomino implements Bag<Pentomino, Answer>, Serializable {
       WIDTH = Integer.parseInt(args[0]);
       HEIGHT = Integer.parseInt(args[1]);
     } catch (final Exception e) {
-      System.err.println(
-          "Error parsing arguments, using H=" + HEIGHT + " W=" + WIDTH);
+      System.err.println("Error parsing arguments");
+      System.err.println("Arguments are <WIDTH> <HEIGHT>");
+      return;
     }
 
-    if (WIDTH * HEIGHT != 60 || WIDTH < HEIGHT) {
+    if (WIDTH * HEIGHT != 60 && WIDTH * HEIGHT != 90) {
       System.err.println("Wrong board size: H=" + HEIGHT + " W=" + WIDTH);
       return;
     }
@@ -128,16 +129,12 @@ public class Pentomino implements Bag<Pentomino, Answer>, Serializable {
     final Pentomino p = new Pentomino(WIDTH, HEIGHT);
     p.init();
 
-    final Pentomino q = new Pentomino(WIDTH, HEIGHT);
-    q.merge(p.split(true));
-
     long duration = System.nanoTime();
     p.toCompletion();
-    q.toCompletion();
     duration = System.nanoTime() - duration;
 
-    System.out.println("Total solutions " + p.width + "*" + p.height + "; "
-        + (p.solutions + q.solutions));
+    System.out.println(
+        "Total solutions " + p.width + "*" + p.height + "; " + p.solutions);
     System.out.println("Time; " + duration / 1e9);
     System.out.println("Tree nodes:" + p.treeNode);
 

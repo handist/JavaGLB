@@ -34,12 +34,24 @@ public class ParallelPentomino {
     int height;
     final GLBcomputer computer;
     try {
-      computer = GLBfactory.setupGLB();
       width = Integer.parseInt(args[0]);
       height = Integer.parseInt(args[1]);
 
     } catch (final Exception e) {
+      System.err.println("Error parsing arguments");
+      System.err.println("Arguments are <WIDTH> <HEIGHT>");
+      return;
+    }
+    try {
+      computer = GLBfactory.setupGLB();
+    } catch (final Exception e) {
+      System.err.println("Error during GLB setup");
       e.printStackTrace();
+      return;
+    }
+
+    if (width * height != 60 && width * height != 90) {
+      System.err.println("Wrong board size: H=" + height + " W=" + width);
       return;
     }
 
@@ -52,7 +64,7 @@ public class ParallelPentomino {
 
     System.out.println(
         "Solution to H:" + height + " W:" + width + "  " + ans.solutions);
-    System.out.println("Tree nodes:" + p.treeNode);
+    System.out.println("Tree nodes:" + ans.nodes);
     computer.getLog().print(System.out);
   }
 }

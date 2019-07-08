@@ -33,32 +33,37 @@ public class ParallelPentomino {
   public static void main(String[] args) {
     int width;
     int height;
-    boolean symmetriesOff = true;
+    boolean removeSymmetries = true;
 
     final GLBcomputer computer;
     try {
-      computer = GLBfactory.setupGLB();
+
       width = Integer.parseInt(args[0]);
       height = Integer.parseInt(args[1]);
-      symmetriesOff = Boolean.parseBoolean(args[2]);
+      removeSymmetries = Boolean.parseBoolean(args[2]);
+      computer = GLBfactory.setupGLB();
     } catch (final Exception e) {
       e.printStackTrace();
       return;
     }
 
+    PentominoType type;
+    if (width * height == 60) {
+      type = PentominoType.STANDARD;
+    } else if (width * height == 90) {
+      type = PentominoType.ONE_SIDED;
+    } else {
+      System.err.println("Wrong board size: H=" + height + " W=" + width);
+      return;
+    }
+
     System.out.println(computer.getConfiguration());
 
-    final Pentomino p = new Pentomino(PentominoType.STANDARD, width, height);
-    p.init(PentominoType.STANDARD, symmetriesOff);
+    final Pentomino p = new Pentomino(type, width, height);
+    p.init(type, removeSymmetries);
 
-    int counter = 0;
-    for (final Piece piece : p.pieces) {
-      piece.printVariations(width + Board.SENTINEL);
-      counter += piece.variations();
-    }
-    System.err.println(counter);
     final Answer ans = computer.compute(p, () -> new Answer(),
-        () -> new Pentomino(PentominoType.STANDARD, width, height));
+        () -> new Pentomino(type, width, height));
 
     System.out.println(
         "Solution to H:" + height + " W:" + width + "  " + ans.solutions);

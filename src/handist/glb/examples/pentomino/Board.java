@@ -26,7 +26,7 @@ import java.util.Arrays;
 public class Board {
 
   /** Character used in the board array to signal that a tile is empty */
-  public static final char EMPTY = ' ';
+  public static final char EMPTY = '-';
 
   /** Margin to the right side of the board */
   public static final int SENTINEL = 4;

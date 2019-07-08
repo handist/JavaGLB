@@ -115,7 +115,7 @@ public class Pentomino implements Bag<Pentomino, Answer>, Serializable {
       HEIGHT = Integer.parseInt(args[1]);
       symmetriesOff = Boolean.parseBoolean(args[2]);
     } catch (final Exception e) {
-      System.err.println("Error parsing arguments W H symmetriesRemoval");
+      System.err.println("Error parsing arguments <W> <H> <symmetriesRemoval>");
       return;
     }
 
@@ -320,7 +320,7 @@ public class Pentomino implements Bag<Pentomino, Answer>, Serializable {
    * @return a pentomino to be used for transfering a partial exploration of the
    *         pentomino problem
    */
-  protected Pentomino getTransferPentomino() {
+  protected Pentomino getInitPentomino() {
     final Pentomino p = new Pentomino(NB_PIECE);
     if (NB_PIECE == 12) {
       p.pentominoType = PentominoType.STANDARD;
@@ -363,7 +363,7 @@ public class Pentomino implements Bag<Pentomino, Answer>, Serializable {
 
             final int placementIndex = i * (width + Board.SENTINEL) + j;
             if (placementIndex != 0) {
-              final Pentomino p = getTransferPentomino();
+              final Pentomino p = getInitPentomino();
 
               final PiecePlaced Xplacement = p.placement[11];
 
@@ -392,14 +392,13 @@ public class Pentomino implements Bag<Pentomino, Answer>, Serializable {
         }
 
       } else if (type == PentominoType.ONE_SIDED) {
-
         for (int i = 0; i < (height - 1) / 2; i++) {
           for (int j = 0; j < (width - 1) / 2; j++) {
             // Generate Pentomino instances with pieceX in (j,i) coordinates
 
             final int placementIndex = i * (width + Board.SENTINEL) + j;
             if (placementIndex != 0) {
-              final Pentomino p = getTransferPentomino();
+              final Pentomino p = getInitPentomino();
 
               final PiecePlaced Xplacement = p.placement[2];
 
@@ -415,14 +414,17 @@ public class Pentomino implements Bag<Pentomino, Answer>, Serializable {
               p.highPiece[1] = 17;
 
               // Remove additional symmetry in cases where PieceX is placed on
-              // the
-              // center column or the center line
+              // the center column or the center line, not that the actual
+              // symmetry removal is made when taking a subproblem from the
+              // reserve.
               if (height % 2 == 1 && i + 1 == (height - 1) / 2) {
                 // Horizontal symmetry needs to be removed
                 p.additionalSymmetryRestriction = 1;
               } else if ((width % 2 == 1 && j + 1 == (width - 1) / 2)) {
                 // Vertical symmetry needs to be removed
                 p.additionalSymmetryRestriction = -1;
+              } else {
+                p.additionalSymmetryRestriction = 0;
               }
 
               putInReserve(p);
@@ -433,7 +435,7 @@ public class Pentomino implements Bag<Pentomino, Answer>, Serializable {
       }
     } else {
       // Does the full exploration
-      final Pentomino p = getTransferPentomino();
+      final Pentomino p = getInitPentomino();
       p.highPiece[0] = NB_PIECE;
       p.additionalSymmetryRestriction = 0;
       putInReserve(p);
@@ -656,6 +658,13 @@ public class Pentomino implements Bag<Pentomino, Answer>, Serializable {
       p = new Pentomino(NB_PIECE);
       p.depth = depth;
 
+      // Copy the stack
+      p.stack = Arrays.copyOf(stack, NB_PIECE);
+      // Copy the placement of the pieces
+      p.placement = new PiecePlaced[NB_PIECE];
+      for (int i = 0; i < NB_PIECE; i++) {
+        p.placement[i] = new PiecePlaced(placement[i]);
+      }
       p.highPiece = Arrays.copyOf(highPiece, NB_PIECE);
       p.lowPiece = Arrays.copyOf(lowPiece, NB_PIECE);
       p.highPosition = Arrays.copyOf(highPosition, NB_PIECE);
@@ -671,7 +680,6 @@ public class Pentomino implements Bag<Pentomino, Answer>, Serializable {
           }
           p.lowPosition[i] = p.highPosition[i];
         } else {
-          assert lowPiece[i] == 42;
           // We cannot split by giving away pieces
           // Give half the final remaining positions
           if (positionsLeft == 1 && takeAll) {
@@ -683,14 +691,6 @@ public class Pentomino implements Bag<Pentomino, Answer>, Serializable {
       }
 
       p.additionalSymmetryRestriction = additionalSymmetryRestriction;
-
-      // Copy the stack
-      p.stack = Arrays.copyOf(stack, NB_PIECE);
-      // Copy the placement of the pieces
-      p.placement = new PiecePlaced[NB_PIECE];
-      for (int i = 0; i < NB_PIECE; i++) {
-        p.placement[i] = new PiecePlaced(placement[i]);
-      }
 
     }
 
@@ -801,8 +801,8 @@ public class Pentomino implements Bag<Pentomino, Answer>, Serializable {
     highPiece = p.highPiece;
     highPosition = p.highPosition;
     lowPosition = p.lowPosition;
-
-    // Reconstitute the board in the state p was
+    additionalSymmetryRestriction = p.additionalSymmetryRestriction;
+    // Reconstitutes the board in the state p was
     board.clear();
     for (int i = 0; i < depth; i++) {
       final PiecePlaced pp = placement[stack[i]];
@@ -811,16 +811,16 @@ public class Pentomino implements Bag<Pentomino, Answer>, Serializable {
     }
 
     if (pentominoType == PentominoType.STANDARD) {
-      if (p.additionalSymmetryRestriction == 1) {
+      if (additionalSymmetryRestriction == 1) {
         P.vars = 4;
       } else {
         P.vars = 8;
       }
-    } else if (pentominoType == PentominoType.STANDARD) {
-      if (p.additionalSymmetryRestriction > 0) {
-        V.removeVerticalSymmetry();
-      } else if (p.additionalSymmetryRestriction < 0) {
+    } else if (pentominoType == PentominoType.ONE_SIDED) {
+      if (additionalSymmetryRestriction > 0) {
         V.removeHorizontalSymmetry();
+      } else if (additionalSymmetryRestriction < 0) {
+        V.removeVerticalSymmetry();
       } else {
         V.reset();
       }
@@ -837,6 +837,7 @@ public class Pentomino implements Bag<Pentomino, Answer>, Serializable {
       }
       if (!reserve.isEmpty()) {
         takeFromReserve();
+
         // Will restart the computation
       } else {
         break;

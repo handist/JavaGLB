@@ -224,7 +224,10 @@ public class QCell {
   }
 
   /**
-   * @return
+   * Indicates if this instance is a column header or a regular cell of the
+   * matrix
+   * 
+   * @return true if this instance is a column header, false otherwise
    */
   public boolean isHeader() {
     return column == null;

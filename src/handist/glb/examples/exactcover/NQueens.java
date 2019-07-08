@@ -96,9 +96,18 @@ public class NQueens implements Bag<NQueens, Answer>, Serializable {
    */
   public static void main(String[] args) {
     int N = 8;
+    int repetitions;
     try {
       N = Integer.parseInt(args[0]);
     } catch (final Exception e) {
+      System.err.println("Error while parsing the arguments");
+      System.err.println("Args <N>");
+      return;
+    }
+    try {
+      repetitions = Integer.parseInt(args[1]);
+    } catch (final Exception e) {
+      repetitions = 10;
     }
 
     if (N <= 4) {
@@ -107,13 +116,23 @@ public class NQueens implements Bag<NQueens, Answer>, Serializable {
       return;
     }
 
-    final NQueens problem = new NQueens(N);
-    problem.init();
-    problem.toCompletion();
+    System.out.println("N=" + N);
+    System.out.println("Run;Solutions;Nodes;Init (s);Computation (s);");
+    for (int i = 0; i < repetitions; i++) {
+      final long initStart = System.nanoTime();
+      final NQueens problem = new NQueens(N);
+      problem.init();
+      final long compStart = System.nanoTime();
+      problem.toCompletion();
+      final long compEnd = System.nanoTime();
 
-    System.out.println(problem.solutionCount);
-    System.out.println(problem.nodeCount);
+      final long init = compStart - initStart;
+      final long comp = compEnd - compStart;
 
+      System.out
+          .println(i + "/" + repetitions + ";" + problem.solutionCount + ";"
+              + problem.nodeCount + ";" + init / 1e9 + ";" + comp / 1e9 + ";");
+    }
   }
 
   /** Depth of the exploration in progress */
@@ -192,95 +211,6 @@ public class NQueens implements Bag<NQueens, Answer>, Serializable {
   }
 
   /**
-   * Set this instance to be in a state at which it will compute the whole
-   * problem
-   */
-  public void init() {
-    depth = 0;
-    low[0] = 0;
-    high[0] = N;
-    final QCell c = matrix.root.right;
-    // nextChoice[0] = c.index;
-    stack[0] = c.index;
-  }
-
-  /**
-   * Computes this instance to completion
-   */
-  public void toCompletion() {
-    while (0 <= depth) {
-      step();
-    }
-  }
-
-  /**
-   * Performs one step in the exploration of the exact cover problem
-   */
-  private void step() {
-    if (choiceLeft() > 0) {
-      nodeCount++;
-      // We pick the next choice
-      final QCell oldChoice = matrix.cells[stack[depth]];
-
-      if (!oldChoice.isHeader()) {
-        // The check removes the case where it is actually the first time we are
-        // trying to fill this column
-        oldChoice.unchooseRow();
-      } else {
-        oldChoice.coverColumn();
-      }
-      final QCell next = oldChoice.down;
-
-      // Place the choice on the stack
-      stack[depth] = next.index;
-      low[depth]++;
-
-      // Try to apply the choice on the matrix
-      next.chooseRow();
-      if (matrix.hasHope()) {
-        depth++; // It is still possible to find a solution, we continue the
-                 // exploration
-
-        if (depth == N) {
-          // We managed to cover all the files and rank !
-          solutionCount++;
-          printStack();
-
-          depth--;
-        } else {
-          // Prepare the next level
-          low[depth] = 0;
-          final QCell c = matrix.root.right;
-          high[depth] = c.size;
-          stack[depth] = c.index;
-        }
-      } // end of if
-      // Choosing the considered row resulted in a column not capable of being
-      // covered later. The next possible row will be tested at the current
-      // level in the next call to this method
-    } else {
-      // We have explored all the options of the current level
-      // We uncover the column of the current level and backtrack
-      final QCell oldChoice = matrix.cells[stack[depth]];
-      final QCell column = oldChoice.column;
-      oldChoice.unchooseRow();
-      column.recoverColumn();
-
-      depth--;
-    }
-  }
-
-  /**
-   * Prints the whole stack
-   */
-  private void printStack() {
-    for (int i = 0; i < depth; i++) {
-      System.out.println(matrix.cells[stack[i]]);
-    }
-    System.out.println();
-  }
-
-  /**
    * Returns the number of options left for the choice at the current depth.
    *
    * @return the number of choices left at the current level of exploration
@@ -298,6 +228,19 @@ public class NQueens implements Bag<NQueens, Answer>, Serializable {
    */
   private int choiceLeft(int level) {
     return high[level] - low[level];
+  }
+
+  /**
+   * Set this instance to be in a state at which it will compute the whole
+   * problem
+   */
+  public void init() {
+    depth = 0;
+    low[0] = 0;
+    high[0] = N;
+    final QCell c = matrix.root.right;
+    // nextChoice[0] = c.index;
+    stack[0] = c.index;
   }
 
   /*
@@ -320,6 +263,9 @@ public class NQueens implements Bag<NQueens, Answer>, Serializable {
     if (matrix == null) {
       return false;
     }
+    if (!reserve.isEmpty()) {
+      return true;
+    }
     int leaves = 0;
     for (int i = 0; i <= depth; i++) {
       leaves += choiceLeft(i);
@@ -338,7 +284,21 @@ public class NQueens implements Bag<NQueens, Answer>, Serializable {
    */
   @Override
   public void merge(NQueens b) {
-    reserve.add(b);
+    if (depth == -1) {
+      restore(b);
+    } else {
+      reserve.add(b);
+    }
+  }
+
+  /**
+   * Prints the whole stack
+   */
+  public void printStack() {
+    for (int i = 0; i < depth; i++) {
+      System.out.println(matrix.cells[stack[i]]);
+    }
+    System.out.println();
   }
 
   /*
@@ -350,7 +310,7 @@ public class NQueens implements Bag<NQueens, Answer>, Serializable {
   public void process(int workAmount, Answer sharedObject) {
     while (workAmount > 0 && !isEmpty()) {
       if (depth < 0) {
-        takeFromReserve();
+        restore(reserve.pop());
       } else {
         step();
       }
@@ -359,12 +319,13 @@ public class NQueens implements Bag<NQueens, Answer>, Serializable {
   }
 
   /**
-   * Takes a NQueens partial exploration stored in the {@link #reserve} and
-   * converts this instance to reflect the state of what was polled from the
-   * {@link #reserve}.
+   * Takes a NQueens partial exploration and converts this instance to reflect
+   * the state of this instance.
+   *
+   * @param loot
+   *          the partial exploration to convert this instance to
    */
-  void takeFromReserve() {
-    final NQueens loot = reserve.pop();
+  void restore(NQueens loot) {
     stack = loot.stack;
     low = loot.low;
     high = loot.high;
@@ -417,19 +378,89 @@ public class NQueens implements Bag<NQueens, Answer>, Serializable {
           loot.stack[level] = c.index;
 
           loot.depth = level;
-          return loot;
+          break;
         } else if (options == 1 && takeAll) {
           loot.low[level] = low[level];
           loot.high[level] = high[level];
 
           high[level]--; // This removes the node from this instance
           loot.depth = level;
-          return loot;
+
+          if (depth == level) {
+            // The last leaf of this instance was given away. We need to
+            // backtrack all the way and restore the matrix
+            while (depth >= 0) {
+              final QCell row = matrix.cells[stack[depth]];
+              if (!row.isHeader()) {
+                row.unchooseRow();
+                row.column.recoverColumn();
+              }
+              depth--;
+            }
+          }
+          break;
         }
       }
     }
 
     return loot;
+  }
+
+  /**
+   * Performs one step in the exploration of the exact cover problem
+   */
+  private void step() {
+    if (choiceLeft() > 0) {
+      nodeCount++;
+      // We pick the next choice
+      final QCell oldChoice = matrix.cells[stack[depth]];
+
+      if (!oldChoice.isHeader()) {
+        // The check removes the case where it is actually the first time we are
+        // trying to fill this column
+        oldChoice.unchooseRow();
+      } else {
+        oldChoice.coverColumn();
+      }
+      final QCell next = oldChoice.down;
+
+      // Place the choice on the stack
+      stack[depth] = next.index;
+      low[depth]++;
+
+      // Try to apply the choice on the matrix
+      next.chooseRow();
+      if (matrix.hasHope()) {
+        depth++; // It is still possible to find a solution, we continue the
+                 // exploration
+
+        if (depth == N) {
+          // We managed to cover all the files and rank !
+          solutionCount++;
+          // printStack();
+
+          depth--;
+        } else {
+          // Prepare the next level
+          low[depth] = 0;
+          final QCell c = matrix.root.right;
+          high[depth] = c.size;
+          stack[depth] = c.index;
+        }
+      } // end of if
+      // Choosing the considered row resulted in a column not capable of being
+      // covered later. The next possible row will be tested at the current
+      // level in the next call to this method
+    } else {
+      // We have explored all the options of the current level
+      // We uncover the column of the current level and backtrack
+      final QCell oldChoice = matrix.cells[stack[depth]];
+      final QCell column = oldChoice.column;
+      oldChoice.unchooseRow();
+      column.recoverColumn();
+
+      depth--;
+    }
   }
 
   /*
@@ -441,6 +472,15 @@ public class NQueens implements Bag<NQueens, Answer>, Serializable {
   public void submit(Answer r) {
     r.nodes += nodeCount;
     r.solutions += solutionCount;
+  }
+
+  /**
+   * Computes this instance to completion
+   */
+  public void toCompletion() {
+    while (0 <= depth) {
+      step();
+    }
   }
 
 }

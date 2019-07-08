@@ -115,6 +115,7 @@ public class Pentomino implements Bag<Pentomino, Answer>, Serializable {
       HEIGHT = Integer.parseInt(args[1]);
       symmetriesOff = Boolean.parseBoolean(args[2]);
     } catch (final Exception e) {
+
       System.err.println("Error parsing arguments <W> <H> <symmetriesRemoval>");
       return;
     }

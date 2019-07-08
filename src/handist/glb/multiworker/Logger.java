@@ -23,6 +23,9 @@ import java.io.PrintStream;
  */
 public class Logger {
 
+  /** Elapsed time during initialization */
+  public long initializationTime;
+
   /** Elapsed computation time in nanosecond */
   public long computationTime;
 
@@ -100,6 +103,8 @@ public class Logger {
    * specified as parameter. It is assumed the result gathering starts directly
    * after the computation.
    *
+   * @param initStart
+   *          initialization start in nanosecond
    * @param computationStart
    *          starting timestamp in nanosecond
    * @param computationEnd
@@ -109,8 +114,9 @@ public class Logger {
    * @param placeCount
    *          number of places in the system
    */
-  Logger(long computationStart, long computationEnd, long resultGatheringEnd,
-      int placeCount) {
+  Logger(long initStart, long computationStart, long computationEnd,
+      long resultGatheringEnd, int placeCount) {
+    initializationTime = computationStart - initStart;
     computationTime = computationEnd - computationStart;
     resultGatheringTime = resultGatheringEnd - computationEnd;
     placeLogs = new PlaceLogger[placeCount];

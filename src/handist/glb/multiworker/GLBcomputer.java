@@ -484,6 +484,7 @@ public class GLBcomputer extends PlaceLocalObject {
       B bag, SerializableSupplier<R> initResultSupplier,
       SerializableSupplier<B> emptyBagSupplier) {
     // We reset every place
+    final long initStart = System.nanoTime();
     resetAll(initResultSupplier, emptyBagSupplier);
 
     // We launch the computation
@@ -497,8 +498,8 @@ public class GLBcomputer extends PlaceLocalObject {
     final long resultGathering = System.nanoTime();
 
     // Preparation for method getLog if it is called
-    computationLog = new Logger(start, computationFinish, resultGathering,
-        CONFIGURATION.p);
+    computationLog = new Logger(initStart, start, computationFinish,
+        resultGathering, CONFIGURATION.p);
     return (R) result;
   }
 

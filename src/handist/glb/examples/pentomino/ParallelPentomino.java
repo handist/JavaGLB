@@ -37,12 +37,18 @@ public class ParallelPentomino {
 
     final GLBcomputer computer;
     try {
-
       width = Integer.parseInt(args[0]);
       height = Integer.parseInt(args[1]);
       removeSymmetries = Boolean.parseBoolean(args[2]);
+    } catch (final Exception e) {
+      System.err.println("Error parsing arguments");
+      System.err.println("Arguments are <WIDTH> <HEIGHT>");
+      return;
+    }
+    try {
       computer = GLBfactory.setupGLB();
     } catch (final Exception e) {
+      System.err.println("Error during GLB setup");
       e.printStackTrace();
       return;
     }
@@ -66,8 +72,8 @@ public class ParallelPentomino {
         () -> new Pentomino(type, width, height));
 
     System.out.println(
-        "Solution to H:" + height + " W:" + width + "  " + ans.solutions);
-    System.out.println("Tree nodes:" + ans.nodes);
+        "Solution to H:" + height + " W:" + width + "; " + ans.solutions + ";");
+    System.out.println("Tree nodes; " + ans.nodes + ";");
     computer.getLog().print(System.out);
   }
 }

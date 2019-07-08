@@ -115,6 +115,7 @@ public class Pentomino implements Bag<Pentomino, Answer>, Serializable {
       HEIGHT = Integer.parseInt(args[1]);
       symmetriesOff = Boolean.parseBoolean(args[2]);
     } catch (final Exception e) {
+
       System.err.println("Error parsing arguments <W> <H> <symmetriesRemoval>");
       return;
     }
@@ -138,8 +139,8 @@ public class Pentomino implements Bag<Pentomino, Answer>, Serializable {
 
     System.out.println(
         "Total solutions " + p.width + "*" + p.height + "; " + p.solutions);
-    System.out.println("Time; " + duration / 1e9);
-    System.out.println("Tree nodes:" + p.treeNode);
+    System.out.println("Tree nodes; " + p.treeNode);
+    System.out.println("Time (s); " + duration / 1e9);
 
   }
 

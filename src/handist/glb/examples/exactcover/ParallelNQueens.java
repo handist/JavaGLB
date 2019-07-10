@@ -45,7 +45,8 @@ public class ParallelNQueens {
       return;
     }
 
-    System.out.println("N=" + size);
+    System.out
+        .println("N=" + size + "Configuration: " + computer.getConfiguration());
     System.out.println("Run;Solutions;TreeNodes;Init time(s);"
         + "Computation time(s);Gathering time(s);");
     for (int i = 0; i < repetitions; i++) {

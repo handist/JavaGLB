@@ -276,6 +276,7 @@ public class Pentomino implements Bag<Pentomino, Answer>, Serializable {
    */
   private Pentomino(int nbPieces) {
     NB_PIECE = nbPieces;
+    depth = -1;
   }
 
   /**
@@ -566,10 +567,10 @@ public class Pentomino implements Bag<Pentomino, Answer>, Serializable {
    */
   @Override
   public boolean isSplittable() {
-    if (reserve != null && reserve.size() > 2) {
+    if (reserve != null && reserve.size() >= 2) {
       return true;
     } else {
-      return (lowPiece != null && treeSplittable());
+      return (lowPiece != null && !isEmpty() && treeSplittable());
     }
   }
 

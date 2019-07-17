@@ -127,7 +127,6 @@ public class PieceV extends Piece {
     vars = 2;
     first = UL;
     second = UR;
-
   }
 
   /**

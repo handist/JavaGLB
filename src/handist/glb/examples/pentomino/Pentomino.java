@@ -130,12 +130,31 @@ public class Pentomino implements Bag<Pentomino, Answer>, Serializable {
       return;
     }
 
+    int[] specificPositions;
+    if (args.length > 3) {
+      // Parse the additional arguments determining the positions of the X piece
+      // to be tried
+      final int nbPositions = args.length - 3;
+      specificPositions = new int[nbPositions];
+      for (int i = 0; i < nbPositions; i++) {
+        specificPositions[i] = Integer.parseInt(args[3 + i]);
+      }
+    } else {
+      specificPositions = null;
+    }
+
     final Pentomino p = new Pentomino(type, WIDTH, HEIGHT);
-    p.init(type, symmetriesOff);
+    p.init(type, symmetriesOff, specificPositions);
 
     long duration = System.nanoTime();
     p.toCompletion();
     duration = System.nanoTime() - duration;
+
+    System.out.print("ARGS: ");
+    for (final String s : args) {
+      System.out.print(s + " ");
+    }
+    System.out.println();
 
     System.out.println(
         "Total solutions " + p.width + "*" + p.height + "; " + p.solutions);
@@ -354,81 +373,103 @@ public class Pentomino implements Bag<Pentomino, Answer>, Serializable {
    *          type of the pentomino at hand
    * @param noSymmetries
    *          indicates if the symmetry removal should be applied or not
+   * @param specificPositions
+   *          indicates which initial positions of piece X should be included in
+   *          the search. Ignored if the symmetries are not removed. If null,
+   *          all possible initial positions of Piece X are included
    */
-  public void init(PentominoType type, boolean noSymmetries) {
+  public void init(PentominoType type, boolean noSymmetries,
+      int[] specificPositions) {
     if (noSymmetries) {
       if (type == PentominoType.STANDARD) {
+        int nextP = 0; // index in array specificPositions
+        int pos = 0; // position available for trial
         for (int i = 0; i < (height - 1) / 2; i++) {
           for (int j = 0; j < (width - 1) / 2; j++) {
+
             // Generate Pentomino instances with pieceX in (j,i) coordinates
 
             final int placementIndex = i * (width + Board.SENTINEL) + j;
             if (placementIndex != 0) {
-              final Pentomino p = getInitPentomino();
+              if (specificPositions == null || (specificPositions != null
+                  && nextP < specificPositions.length
+                  && specificPositions[nextP] == pos)) {
+                final Pentomino p = getInitPentomino();
 
-              final PiecePlaced Xplacement = p.placement[11];
+                final PiecePlaced Xplacement = p.placement[11];
 
-              Xplacement.index = placementIndex + 1;
-              Xplacement.variation = 0;
-              p.stack[0] = 11;
-              p.depth = 1;
-              p.lowPiece[0] = 1;
-              p.highPiece[0] = 1;
-              p.lowPosition[0] = 1;
-              p.highPosition[0] = 1;
-              p.lowPiece[1] = 0;
-              p.highPiece[1] = 11;
+                Xplacement.index = placementIndex + 1;
+                Xplacement.variation = 0;
+                p.stack[0] = 11;
+                p.depth = 1;
+                p.lowPiece[0] = 1;
+                p.highPiece[0] = 1;
+                p.lowPosition[0] = 1;
+                p.highPosition[0] = 1;
+                p.lowPiece[1] = 0;
+                p.highPiece[1] = 11;
 
-              // Remove additional symmetry in cases where PieceX is placed on
-              // the
-              // center column or the center line
-              if ((height % 2 == 1 && i + 1 == (height - 1) / 2)
-                  || (width % 2 == 1 && j + 1 == (width - 1) / 2)) {
-                p.additionalSymmetryRestriction = 1;
+                // Remove additional symmetry in cases where PieceX is placed on
+                // the
+                // center column or the center line
+                if ((height % 2 == 1 && i + 1 == (height - 1) / 2)
+                    || (width % 2 == 1 && j + 1 == (width - 1) / 2)) {
+                  p.additionalSymmetryRestriction = 1;
+                }
+
+                putInReserve(p);
+                nextP++;
               }
-
-              putInReserve(p);
+              pos++;
             }
           }
         }
 
       } else if (type == PentominoType.ONE_SIDED) {
+        int nextP = 0; // index in array specificPositions
+        int pos = 0; // position available for trial
         for (int i = 0; i < (height - 1) / 2; i++) {
           for (int j = 0; j < (width - 1) / 2; j++) {
             // Generate Pentomino instances with pieceX in (j,i) coordinates
 
             final int placementIndex = i * (width + Board.SENTINEL) + j;
             if (placementIndex != 0) {
-              final Pentomino p = getInitPentomino();
+              if (specificPositions == null || (specificPositions != null
+                  && nextP < specificPositions.length
+                  && specificPositions[nextP] == pos)) {
+                final Pentomino p = getInitPentomino();
 
-              final PiecePlaced Xplacement = p.placement[2];
+                final PiecePlaced Xplacement = p.placement[2];
 
-              Xplacement.index = placementIndex + 1;
-              Xplacement.variation = 0;
-              p.stack[0] = 2;
-              p.depth = 1;
-              p.lowPiece[0] = 1;
-              p.highPiece[0] = 1;
-              p.lowPosition[0] = 1;
-              p.highPosition[0] = 1;
-              p.lowPiece[1] = 0;
-              p.highPiece[1] = 17;
+                Xplacement.index = placementIndex + 1;
+                Xplacement.variation = 0;
+                p.stack[0] = 2;
+                p.depth = 1;
+                p.lowPiece[0] = 1;
+                p.highPiece[0] = 1;
+                p.lowPosition[0] = 1;
+                p.highPosition[0] = 1;
+                p.lowPiece[1] = 0;
+                p.highPiece[1] = 17;
 
-              // Remove additional symmetry in cases where PieceX is placed on
-              // the center column or the center line, not that the actual
-              // symmetry removal is made when taking a subproblem from the
-              // reserve.
-              if (height % 2 == 1 && i + 1 == (height - 1) / 2) {
-                // Horizontal symmetry needs to be removed
-                p.additionalSymmetryRestriction = 1;
-              } else if ((width % 2 == 1 && j + 1 == (width - 1) / 2)) {
-                // Vertical symmetry needs to be removed
-                p.additionalSymmetryRestriction = -1;
-              } else {
-                p.additionalSymmetryRestriction = 0;
+                // Remove additional symmetry in cases where PieceX is placed on
+                // the center column or the center line, not that the actual
+                // symmetry removal is made when taking a subproblem from the
+                // reserve.
+                if (height % 2 == 1 && i + 1 == (height - 1) / 2) {
+                  // Horizontal symmetry needs to be removed
+                  p.additionalSymmetryRestriction = 1;
+                } else if ((width % 2 == 1 && j + 1 == (width - 1) / 2)) {
+                  // Vertical symmetry needs to be removed
+                  p.additionalSymmetryRestriction = -1;
+                } else {
+                  p.additionalSymmetryRestriction = 0;
+                }
+
+                putInReserve(p);
+                nextP++;
               }
-
-              putInReserve(p);
+              pos++;
             }
           }
         }

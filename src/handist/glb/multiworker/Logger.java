@@ -99,17 +99,22 @@ public class Logger {
     for (int i = 0; i < placeLogs.length; i++) {
       out.print("Place " + i + ";Stamp;");
       final PlaceLogger pl = placeLogs[i];
-      for (final PlaceLogger.TunerStamp ts : pl.tuning) {
-        out.print(ts.stamp + ";");
+      final long first = pl.tuning[0].stamp;
+      for (int j = 0; j < pl.tuningIndex; j++) {
+        final PlaceLogger.TunerStamp ts = pl.tuning[j];
+        out.print((ts.stamp - first) / 1e9 + ";");
       }
       out.println();
-      out.print(";Value;");
-      for (final PlaceLogger.TunerStamp ts : pl.tuning) {
+    }
+    for (int i = 0; i < placeLogs.length; i++) {
+      out.print("Place " + i + ";Value;");
+      final PlaceLogger pl = placeLogs[i];
+      for (int j = 0; j < pl.tuningIndex; j++) {
+        final PlaceLogger.TunerStamp ts = pl.tuning[j];
         out.print(ts.n + ";");
       }
       out.println();
     }
-
   }
 
   /**

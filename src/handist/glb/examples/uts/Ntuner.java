@@ -182,7 +182,6 @@ public class Ntuner implements Tuner, Serializable {
         if (c.n <= 0) {
           c.n = Integer.MAX_VALUE;
         }
-        l.NvalueTuned(stamp, c.n);
       } else {
         lastDecision = 1;
       }
@@ -191,11 +190,12 @@ public class Ntuner implements Tuner, Serializable {
         // Divide n by 2, add 1 to be sure it doesn't turn to 0
         c.n = (c.n / 2) + 1;
         lastDecision = 0;
-        l.NvalueTuned(stamp, c.n);
       } else {
         lastDecision = -1;
       }
     }
+
+    l.NvalueTuned(stamp, c.n);
 
     // Saving the current values for the next check
     lastCallTimestamp = stamp;

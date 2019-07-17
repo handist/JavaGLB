@@ -13,7 +13,7 @@ package handist.glb.multiworker;
 
 import java.io.PrintStream;
 import java.io.Serializable;
-import java.util.LinkedList;
+import java.util.Arrays;
 import java.util.concurrent.atomic.AtomicLong;
 
 /**
@@ -47,7 +47,7 @@ public class PlaceLogger implements Serializable {
 
     /**
      * Constructor
-     * 
+     *
      * @param timestamp
      *          stamp at which the value was changed
      * @param value
@@ -168,7 +168,10 @@ public class PlaceLogger implements Serializable {
    * Contains instances of class {@link TunerStamp} for each time the place's
    * tuner changes the values used.
    */
-  LinkedList<TunerStamp> tuning = new LinkedList<>();
+  TunerStamp[] tuning = new TunerStamp[100];
+
+  /** Next free place in {@link #tuning} array */
+  int tuningIndex = 0;
 
   /** Indicates the number of workers currently running on the place. */
   public int workerCount = 0;
@@ -264,7 +267,10 @@ public class PlaceLogger implements Serializable {
    *          new value decided by the tuner
    */
   public void NvalueTuned(long timestamp, int newValue) {
-    tuning.add(new TunerStamp(timestamp, newValue));
+    if (tuning.length == tuningIndex) {
+      tuning = Arrays.copyOf(tuning, tuningIndex * 2);
+    }
+    tuning[tuningIndex++] = new TunerStamp(timestamp, newValue);
   }
 
   /**

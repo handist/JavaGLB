@@ -216,7 +216,7 @@ public class Pentomino implements Bag<Pentomino, Answer>, Serializable {
   /**
    * Reserve of different explorations kept aside
    */
-  transient Deque<Pentomino> reserve;
+  Deque<Pentomino> reserve;
 
   /**
    * Indicates of the current instance needs additional restrictions on symmetry
@@ -566,7 +566,11 @@ public class Pentomino implements Bag<Pentomino, Answer>, Serializable {
    */
   @Override
   public boolean isSplittable() {
-    return (reserve != null && reserve.size() > 1) || treeSplittable();
+    if (reserve != null && reserve.size() > 2) {
+      return true;
+    } else {
+      return (lowPiece != null && treeSplittable());
+    }
   }
 
   /*
@@ -576,13 +580,7 @@ public class Pentomino implements Bag<Pentomino, Answer>, Serializable {
    */
   @Override
   public void merge(Pentomino b) {
-    if (b.reserve != null) {
-      for (final Pentomino p : b.reserve) {
-        putInReserve(p);
-      }
-    } else {
-      putInReserve(b);
-    }
+    reserve.addAll(b.reserve);
   }
 
   /**
@@ -690,14 +688,18 @@ public class Pentomino implements Bag<Pentomino, Answer>, Serializable {
    */
   @Override
   public Pentomino split(boolean takeAll) {
-    Pentomino p = null;
-    if (reserve != null) {
-      p = reserve.pollFirst();
-    }
+    final Pentomino toReturn = new Pentomino(NB_PIECE);
+    toReturn.reserve = new LinkedList<>();
 
-    if (p == null) {
+    if (reserve != null && !reserve.isEmpty()) {
+      int qtt = (reserve.size() + 1) / 2;
+      while (qtt > 0) {
+        toReturn.reserve.addLast(reserve.pollFirst());
+        qtt--;
+      }
+    } else {
       // We need to split the current exploration tree
-      p = new Pentomino(NB_PIECE);
+      final Pentomino p = new Pentomino(NB_PIECE);
       p.depth = depth;
 
       // Copy the stack
@@ -733,10 +735,10 @@ public class Pentomino implements Bag<Pentomino, Answer>, Serializable {
       }
 
       p.additionalSymmetryRestriction = additionalSymmetryRestriction;
-
+      toReturn.reserve.addLast(p);
     }
 
-    return p;
+    return toReturn;
   }
 
   /**

@@ -13,6 +13,7 @@ package handist.glb.multiworker;
 
 import java.io.PrintStream;
 import java.io.Serializable;
+import java.util.Arrays;
 import java.util.concurrent.atomic.AtomicLong;
 
 /**
@@ -26,6 +27,37 @@ import java.util.concurrent.atomic.AtomicLong;
  * @see Logger
  */
 public class PlaceLogger implements Serializable {
+
+  /**
+   * Wrapper class used to carry the information regarding when the tuner chose
+   * to modify the value of {@link Configuration#n}.
+   *
+   * @author Patrick Finnerty
+   *
+   */
+  class TunerStamp implements Serializable {
+
+    /** Serial version UID */
+    private static final long serialVersionUID = -5482168027300527929L;
+
+    /** Timestamp at which the value of parameter "n" was changed */
+    final long stamp;
+    /** New value used hereinafter */
+    final int n;
+
+    /**
+     * Constructor
+     *
+     * @param timestamp
+     *          stamp at which the value was changed
+     * @param value
+     *          new value chosen by the tuner
+     */
+    public TunerStamp(long timestamp, int value) {
+      stamp = timestamp;
+      n = value;
+    }
+  }
 
   /** Generated Serial Version UID */
   private static final long serialVersionUID = 2764081210591528731L;
@@ -132,6 +164,15 @@ public class PlaceLogger implements Serializable {
    */
   public long time[];
 
+  /**
+   * Contains instances of class {@link TunerStamp} for each time the place's
+   * tuner changes the values used.
+   */
+  TunerStamp[] tuning = new TunerStamp[100];
+
+  /** Next free place in {@link #tuning} array */
+  int tuningIndex = 0;
+
   /** Indicates the number of workers currently running on the place. */
   public int workerCount = 0;
 
@@ -215,6 +256,21 @@ public class PlaceLogger implements Serializable {
     lastEventTimeStamp = stamp;
     workerSpawned++;
     workerCount++;
+  }
+
+  /**
+   * To be called when the tuner changes the value of {@link Configuration#n}.
+   *
+   * @param timestamp
+   *          time stamp of when the modification was done
+   * @param newValue
+   *          new value decided by the tuner
+   */
+  public void NvalueTuned(long timestamp, int newValue) {
+    if (tuning.length == tuningIndex) {
+      tuning = Arrays.copyOf(tuning, tuningIndex * 2);
+    }
+    tuning[tuningIndex++] = new TunerStamp(timestamp, newValue);
   }
 
   /**

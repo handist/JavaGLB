@@ -130,6 +130,9 @@ public class Ntuner implements Tuner, Serializable {
       oldMaxWorkerAccumulatedTime = l.time[l.time.length - 1];
     }
     lastDecision = 0;
+
+    l.NvalueTuned(lastCallTimestamp, c.n);
+
     return lastCallTimestamp;
   }
 
@@ -192,16 +195,14 @@ public class Ntuner implements Tuner, Serializable {
       }
     }
 
+    l.NvalueTuned(stamp, c.n);
+
     // Saving the current values for the next check
     lastCallTimestamp = stamp;
     oldIntraQueueFed = newFeed;
     oldIntraQueueSplit = newSplit;
     oldMaxWorkerAccumulatedTime = maxWorkerStamp;
 
-    /*
-     * System.err.print(l.place + ";" + stamp + ";" + nTooSmall + ";" +
-     * nTooLarge + ";" + c.n + ";\r\n");
-     */
     return lastCallTimestamp;
   }
 }

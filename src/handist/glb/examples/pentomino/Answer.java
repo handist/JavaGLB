@@ -29,7 +29,7 @@ public class Answer implements Fold<Answer>, Serializable {
   private static final long serialVersionUID = 3877827129899016979L;
 
   /** Counter for the number of solutions to the pentomino problem */
-  public int solutions;
+  public long solutions;
 
   /** Counter for the number of nodes in the search tree */
   public long nodes;

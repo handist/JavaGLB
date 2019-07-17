@@ -45,17 +45,8 @@ public class ParallelNQueens {
       return;
     }
 
-    long warmupTime = System.nanoTime();
-
-    final int warmSize = size - 1;
-
-    final NQueens warmup = new NQueens(warmSize);
-    computer.compute(warmup, () -> new Answer(), () -> new NQueens(warmSize));
-
-    warmupTime = System.nanoTime() - warmupTime;
-    System.out.println("Warmup time;" + warmupTime / 1e9);
-
-    System.out.println("N=" + size);
+    System.out
+        .println("N=" + size + "Configuration: " + computer.getConfiguration());
     System.out.println("Run;Solutions;TreeNodes;Init time(s);"
         + "Computation time(s);Gathering time(s);");
     for (int i = 0; i < repetitions; i++) {

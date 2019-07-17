@@ -72,8 +72,8 @@ public class ParallelPentomino {
         () -> new Pentomino(type, width, height));
 
     System.out.println(
-        "Solution to H:" + height + " W:" + width + "  " + ans.solutions);
-    System.out.println("Tree nodes:" + ans.nodes);
+        "Solution to H:" + height + " W:" + width + "; " + ans.solutions + ";");
+    System.out.println("Tree nodes; " + ans.nodes + ";");
     computer.getLog().print(System.out);
   }
 }

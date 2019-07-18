@@ -89,7 +89,7 @@ public class ParallelPentomino {
     p.init(type, removeSymmetries, specificPositions);
 
     final Answer ans = computer.compute(p, () -> new Answer(),
-        () -> new Pentomino(type, width, height));
+        () -> new Pentomino(type), () -> new Pentomino(type, width, height));
 
     System.out.println(
         "Solution to H:" + height + " W:" + width + "; " + ans.solutions + ";");

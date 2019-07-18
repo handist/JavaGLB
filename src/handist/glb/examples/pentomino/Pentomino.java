@@ -273,9 +273,23 @@ public class Pentomino implements Bag<Pentomino, Answer>, Serializable {
   /**
    * Private constructor which does not initialize any member, Used for creating
    * the only necessary members when splitting the Pentomino problem
+   *
+   * @param t
+   *          type of the computation at hand
    */
-  private Pentomino(int nbPieces) {
-    NB_PIECE = nbPieces;
+  public Pentomino(PentominoType t) {
+    pentominoType = t;
+    reserve = new LinkedList<>();
+    switch (t) {
+    case STANDARD:
+      NB_PIECE = 12;
+      break;
+    case ONE_SIDED:
+      NB_PIECE = 18;
+      break;
+    default:
+      NB_PIECE = 0;
+    }
     depth = -1;
   }
 
@@ -342,12 +356,7 @@ public class Pentomino implements Bag<Pentomino, Answer>, Serializable {
    *         pentomino problem
    */
   protected Pentomino getInitPentomino() {
-    final Pentomino p = new Pentomino(NB_PIECE);
-    if (NB_PIECE == 12) {
-      p.pentominoType = PentominoType.STANDARD;
-    } else {
-      p.pentominoType = PentominoType.ONE_SIDED;
-    }
+    final Pentomino p = new Pentomino(pentominoType);
 
     p.placement = new PiecePlaced[NB_PIECE];
     for (int i = 0; i < NB_PIECE; i++) {
@@ -570,7 +579,7 @@ public class Pentomino implements Bag<Pentomino, Answer>, Serializable {
     if (reserve != null && reserve.size() >= 2) {
       return true;
     } else {
-      return (lowPiece != null && !isEmpty() && treeSplittable());
+      return (lowPiece != null && treeSplittable());
     }
   }
 
@@ -689,10 +698,9 @@ public class Pentomino implements Bag<Pentomino, Answer>, Serializable {
    */
   @Override
   public Pentomino split(boolean takeAll) {
-    final Pentomino toReturn = new Pentomino(NB_PIECE);
-    toReturn.reserve = new LinkedList<>();
+    final Pentomino toReturn = new Pentomino(pentominoType);
 
-    if (reserve != null && !reserve.isEmpty()) {
+    if (reserve.size() >= 2 || takeAll) {
       int qtt = (reserve.size() + 1) / 2;
       while (qtt > 0) {
         toReturn.reserve.addLast(reserve.pollFirst());
@@ -700,7 +708,7 @@ public class Pentomino implements Bag<Pentomino, Answer>, Serializable {
       }
     } else {
       // We need to split the current exploration tree
-      final Pentomino p = new Pentomino(NB_PIECE);
+      final Pentomino p = new Pentomino(pentominoType);
       p.depth = depth;
 
       // Copy the stack

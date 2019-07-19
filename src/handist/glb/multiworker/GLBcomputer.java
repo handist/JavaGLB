@@ -1142,7 +1142,7 @@ public class GLBcomputer extends PlaceLocalObject {
         /*
          * 5. Yield if need be
          */
-        if (logger.workerCount == CONFIGURATION.x
+        if (workerCount == CONFIGURATION.x
             && (POOL.hasQueuedSubmissions() || lifelineToAnswer)) {
           final Lock l = workerAvailableLocks.poll();
           if (l != null) {
@@ -1168,6 +1168,8 @@ public class GLBcomputer extends PlaceLocalObject {
 
       } while (!bag.isEmpty());// 7. Repeat previous steps until the bag becomes
                                // empty.
+
+      logger.workerStealing(); // The worker is now stealing
 
       /*
        * 8. Intra-place load balancing
@@ -1227,6 +1229,7 @@ public class GLBcomputer extends PlaceLocalObject {
 
       // Stealing from the queues in the place was successful. The worker goes
       // back to processing its fraction of the work.
+      logger.workerResumed();
 
     } // Enclosing infinite for loop. Exit is done with the "return;" 7 lines
       // above.

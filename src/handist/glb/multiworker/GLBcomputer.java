@@ -679,9 +679,12 @@ public class GLBcomputer extends PlaceLocalObject {
       /*
        * 2. Answer lifelines
        */
-      while (!lifelineThieves.isEmpty() && !interQueueEmpty) {
+      while (!lifelineThieves.isEmpty()) {
         Bag loot;
         synchronized (intraPlaceQueue) {
+          if (interQueueEmpty) {
+            break;
+          }
           loot = interPlaceQueue.split(true);
           logger.interQueueSplit.incrementAndGet();
           interQueueEmpty = interPlaceQueue.isEmpty();
@@ -713,22 +716,22 @@ public class GLBcomputer extends PlaceLocalObject {
    */
   @SuppressWarnings({ "rawtypes", "unchecked" })
   Bag loot() {
-    Bag loot;
+    Bag loot = null;
     // Quick check on the other queue
     if (intraQueueEmpty) {
       synchronized (intraPlaceQueue) {
-        loot = interPlaceQueue.split(true);
-        logger.interQueueSplit.incrementAndGet();
-        interQueueEmpty = interPlaceQueue.isEmpty(); // Update flag
-        if (loot.isSplittable()) {
-          intraPlaceQueue.merge(loot.split(false));
+        if (interPlaceQueue.isSplittable()) {
+          final Bag b = interPlaceQueue.split(false);
+          logger.interQueueSplit.incrementAndGet();
+          intraPlaceQueue.merge(b);
           logger.intraQueueFed.incrementAndGet();
           intraQueueEmpty = intraPlaceQueue.isEmpty(); // Update flag
         }
       }
-    } else {
-      // The inter queue has work, no worries
-      synchronized (intraPlaceQueue) {
+    }
+    synchronized (intraPlaceQueue) {
+      if (!interQueueEmpty) {
+        requestInterQueueFeed();
         loot = interPlaceQueue.split(true);
         logger.interQueueSplit.incrementAndGet();
         interQueueEmpty = interPlaceQueue.isEmpty(); // Update flag
@@ -737,6 +740,7 @@ public class GLBcomputer extends PlaceLocalObject {
     if (interQueueEmpty) {
       requestInterQueueFeed();
     }
+
     return loot;
   }
 
@@ -1026,25 +1030,25 @@ public class GLBcomputer extends PlaceLocalObject {
     workerLock.unblock();
 
     final int h = HOME.id;
+    final Bag loot = loot();
 
     if (thief >= 0) {
+      // A lifeline is trying to steal some work
       logger.lifelineStealsReceived.incrementAndGet();
 
-      if (interQueueEmpty) {
+      if (loot == null) {
         // Steal does not immediately succeeds
         // The lifeline is registered to answer it later.
         lifelineThieves.offer(thief);
       } else {
         logger.lifelineStealsSuffered.incrementAndGet();
-
-        final Bag loot = loot();
         asyncAt(place(thief), () -> deal(h, loot));
       }
     } else {
+      // A random thief is trying to steal some work
       logger.stealsReceived.incrementAndGet();
-      if (!interQueueEmpty) {
+      if (loot != null) {
         logger.stealsSuffered.incrementAndGet();
-        final Bag loot = loot();
         asyncAt(place(-thief - 1), () -> deal(-1, loot));
       }
     }
@@ -1176,7 +1180,7 @@ public class GLBcomputer extends PlaceLocalObject {
         /*
          * 5. Yield if need be
          */
-        if (logger.workerCount == CONFIGURATION.x
+        if (workerCount == CONFIGURATION.x
             && (POOL.hasQueuedSubmissions() || lifelineToAnswer)) {
           final Lock l = workerAvailableLocks.poll();
           if (l != null) {
@@ -1203,6 +1207,8 @@ public class GLBcomputer extends PlaceLocalObject {
       } while (!bag.isEmpty());// 7. Repeat previous steps until the bag becomes
                                // empty.
 
+      logger.workerStealing(); // The worker is now stealing
+
       /*
        * 8. Intra-place load balancing
        */
@@ -1214,36 +1220,44 @@ public class GLBcomputer extends PlaceLocalObject {
 
         // Attempt to steal some work from the intra-place bag
         if (!intraQueueEmpty) {
+          Bag loot = null;
           synchronized (intraPlaceQueue) {
-            bag.merge(intraPlaceQueue.split(true)); // If only a fragment can't
-                                                    // be
-                                                    // taken, we take the whole
-                                                    // content of the
-                                                    // intraPlaceQueue
-            intraQueueEmpty = intraPlaceQueue.isEmpty(); // Flag update
-
-            logger.intraQueueSplit.incrementAndGet();
+            if (!intraQueueEmpty) {
+              loot = intraPlaceQueue.split(true); // If only a fragment can't
+                                                  // be
+                                                  // taken, we take the whole
+                                                  // content of the
+                                                  // intraPlaceQueue
+              intraQueueEmpty = intraPlaceQueue.isEmpty(); // Flag update
+              logger.intraQueueSplit.incrementAndGet();
+            }
+          }
+          if (loot != null) {
+            bag.merge(loot);
           }
 
         } else if (!interQueueEmpty) { // Couldn't steal from intraQueue, try on
                                        // interQueue
-          Bag loot;
+          Bag loot = null;
           synchronized (intraPlaceQueue) {
-            loot = interPlaceQueue.split(true); // Take from interplace
-            logger.interQueueSplit.incrementAndGet();
-            interQueueEmpty = interPlaceQueue.isEmpty(); // Update the flag
-            if (loot.isSplittable()) {
-              // Put some work back into the intra queue
-              intraPlaceQueue.merge(loot.split(false));
-              logger.intraQueueFed.incrementAndGet();
-              intraQueueEmpty = intraPlaceQueue.isEmpty(); // Update the flag
+            if (!interQueueEmpty) {
+              loot = interPlaceQueue.split(true); // Take from interplace
+              logger.interQueueSplit.incrementAndGet();
+              interQueueEmpty = interPlaceQueue.isEmpty(); // Update the flag
+              /*
+               * if (loot.isSplittable()) { // Put some work back into the intra
+               * queue intraPlaceQueue.merge(loot.split(false));
+               * logger.intraQueueFed.incrementAndGet(); intraQueueEmpty =
+               * intraPlaceQueue.isEmpty(); // Update the flag }
+               */
             }
           }
           if (interQueueEmpty) {
             requestInterQueueFeed();
           }
-
-          bag.merge(loot);
+          if (loot != null) {
+            bag.merge(loot);
+          }
 
         } else {// Both queues were empty. The worker stops.
           workerBags.add(workerBag);
@@ -1261,6 +1275,7 @@ public class GLBcomputer extends PlaceLocalObject {
 
       // Stealing from the queues in the place was successful. The worker goes
       // back to processing its fraction of the work.
+      logger.workerResumed();
 
     } // Enclosing infinite for loop. Exit is done with the "return;" 7 lines
       // above.

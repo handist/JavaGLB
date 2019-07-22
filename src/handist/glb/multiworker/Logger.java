@@ -64,7 +64,9 @@ public class Logger {
   public void print(PrintStream out) {
     out.println("Computation time (s); " + computationTime / 1e9);
     out.println("Result gathering (s); " + resultGatheringTime / 1e9);
-    out.print(
+
+    // Print the general counters for each place
+    out.println(
         "Place;Worker Spawns;IntraQueueSplit;IntraQueueFed;InterQueueSplit;InterQueueFed;"
             + "Rdm Steals Attempted;Rdm Steals Successes;"
             + "Rdm Steals Received;Rdm Steals Suffered;"
@@ -73,10 +75,6 @@ public class Logger {
             + "Lifeline Thread Active(s);Lifeline Thread Holding(s);"
             + "Lifeline Thread Inactive(s);Lifeline Thread Woken Up;"
             + "Worker Yielding;");
-    for (int i = 0; i < placeLogs[0].time.length; i++) {
-      out.print(i + " workers(s);");
-    }
-    out.println();
 
     for (final PlaceLogger l : placeLogs) {
       out.print(l.place + ";" + l.workerSpawned + ";" + l.intraQueueSplit + ";"
@@ -89,13 +87,41 @@ public class Logger {
           + ";" + l.lifelineThreadInactive / 1e9 + ";" + l.lifelineThreadWokenUp
           + ";" + l.yieldingTime / 1e9 + ";");
 
+    }
+    out.println();
+
+    // Print the time spent with all the workers on each place
+    out.println("WORKER DATA");
+    out.println("Nb of worker spawned");
+    out.print("Place;");
+    for (int i = 0; i < placeLogs[0].time.length; i++) {
+      out.print(i + ";");
+    }
+    out.println();
+
+    for (final PlaceLogger l : placeLogs) {
+      out.print(l.place + ";");
       for (final long i : l.time) {
         out.print(i / 1e9 + ";");
       }
       out.println();
     }
 
-    out.println("Tuner data");
+    out.println("Nb of worker stealing");
+    out.print("Place;");
+    for (int i = 0; i < placeLogs[0].timeStealing.length; i++) {
+      out.print(i + ";");
+    }
+    out.println();
+    for (final PlaceLogger l : placeLogs) {
+      out.print(l.place + ";");
+      for (final long i : l.timeStealing) {
+        out.print(i / 1e9 + ";");
+      }
+      out.println();
+    }
+
+    out.println("TUNER DATA");
     for (int i = 0; i < placeLogs.length; i++) {
       out.print("Place " + i + ";Stamp;");
       final PlaceLogger pl = placeLogs[i];

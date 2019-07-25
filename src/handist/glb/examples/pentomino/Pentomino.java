@@ -81,6 +81,17 @@ public class Pentomino implements Bag<Pentomino, Answer>, Serializable {
       index = -1;
     }
 
+    /**
+     * Copy constructor
+     *
+     * @param pp
+     *          instance to copy
+     */
+    public PiecePlaced(PiecePlaced pp) {
+      variation = pp.variation;
+      index = pp.index;
+    }
+
     @Override
     public String toString() {
       return variation + "@" + index;
@@ -241,27 +252,21 @@ public class Pentomino implements Bag<Pentomino, Answer>, Serializable {
   int[] stack;
   /**
    * Indicates that 'depth' pieces have been chosen/orientated and placed on the
-   * board. Used as index for arrays {@link #lowPiece}, {@link #highPiece},
-   * {@link #lowPosition}, and {@link #highPosition}.
+   * board. Used as index for arrays {@link #low}, {@link #high}, and
+   * {@link #stack}.
    */
   int depth;
 
   /**
-   * Lower bound of the pieces that are left to consider in the
-   * {@link #piecesLeft} collection
+   * Lower bound of the pieces/orientations that are left to consider in the
+   * {@link #pieces} collection
    */
-  int[] lowPiece;
+  int[] low;
   /**
-   * Upper bound of the pieces that are left to consider in the
-   * {@link #piecesLeft} collection
+   * Upper bound of the pieces/orientations that are left to consider in the
+   * {@link #pieces} collection
    */
-  int[] highPiece;
-
-  /** Lower bound of the variation of the piece under consideration */
-  int[] lowPosition;
-
-  /** Upper bound of the variation of the piece under consideration */
-  int[] highPosition;
+  int[] high;
 
   /**
    * Private constructor which does not initialize any member, Used for creating
@@ -316,33 +321,56 @@ public class Pentomino implements Bag<Pentomino, Answer>, Serializable {
     default:
       NB_PIECE = 0;
     }
+    placement = new PiecePlaced[NB_PIECE];
+    for (int i = 0; i < NB_PIECE; i++) {
+      placement[i] = new PiecePlaced();
+    }
 
     initPieces(type);
   }
 
   /**
-   * Retrieves the index in array {@link PiecePlaced} of the n'th piece that
-   * remains to be placed on the board
    *
-   * @param n
-   *          the number of the piece among those that remain to be found
-   * @return the index of the n'th piece in array {@link #placement} and
-   *         {@link #pieces}
+   * @param index
+   * @return
    */
   private int getRemaining(int index) {
-    PiecePlaced pp;
-    int i = 0;
-    do {
-      if (i >= placement.length) {
-        System.err.println("CHAOS AND DESPAIR");
+    int ppIndex = 0;
+    int vars;
+    for (;; ppIndex++) {
+      if (placement[ppIndex].index == -1) { // If the piece isn't placed
+                                            // already
+        vars = pieces[ppIndex].variations();
+        if (vars > index) { // If the next piece to try is said piece, break
+          break;
+        } else { // Else we will enquire about the next piece
+          index -= vars;
+        }
       }
-      pp = placement[i];
-      i++;
-      if (pp.variation < 0) {
-        index--;
+    }
+
+    placement[ppIndex].variation = index;
+
+    return ppIndex;
+
+  }
+
+  /**
+   * Returns the total number of different pieces/orientations that remain
+   * available in the {@link #placement} array.
+   *
+   * @return number of options for piece placement available
+   */
+  private int getTotalOptions() {
+    int counter = 0;
+    for (int i = 0; i < placement.length; i++) {
+      final PiecePlaced pp = placement[i];
+      if (pp.index < 0) {
+        // Piece has not been placed yet, we count its different positions
+        counter += pieces[i].variations();
       }
-    } while (0 < index);
-    return i - 1;
+    }
+    return counter;
   }
 
   /**
@@ -351,7 +379,7 @@ public class Pentomino implements Bag<Pentomino, Answer>, Serializable {
    * @return a pentomino to be used for transfering a partial exploration of the
    *         pentomino problem
    */
-  protected Pentomino getInitPentomino() {
+  private Pentomino getInitPentomino() {
     final Pentomino p = new Pentomino(pentominoType);
 
     p.placement = new PiecePlaced[NB_PIECE];
@@ -362,11 +390,8 @@ public class Pentomino implements Bag<Pentomino, Answer>, Serializable {
     p.stack = new int[NB_PIECE];
 
     // Prepare the arrays that describe the tree
-    p.lowPiece = new int[NB_PIECE];
-    p.lowPosition = new int[NB_PIECE];
-    p.highPiece = new int[NB_PIECE];
-    p.highPosition = new int[NB_PIECE];
-    p.highPiece[0] = NB_PIECE;
+    p.high = new int[NB_PIECE];
+    p.low = new int[NB_PIECE];
 
     return p;
   }
@@ -408,19 +433,18 @@ public class Pentomino implements Bag<Pentomino, Answer>, Serializable {
                 Xplacement.variation = 0;
                 p.stack[0] = 11;
                 p.depth = 1;
-                p.lowPiece[0] = 1;
-                p.highPiece[0] = 1;
-                p.lowPosition[0] = 1;
-                p.highPosition[0] = 1;
-                p.lowPiece[1] = 0;
-                p.highPiece[1] = 11;
+                p.low[0] = 1;
+                p.high[0] = 1;
+                p.low[1] = 0;
+                p.high[1] = 62; // 63 different possibilities minus the X only
+                                // orientation
 
                 // Remove additional symmetry in cases where PieceX is placed on
-                // the
-                // center column or the center line
+                // the center column or the center line
                 if ((height % 2 == 1 && i + 1 == (height - 1) / 2)
                     || (width % 2 == 1 && j + 1 == (width - 1) / 2)) {
                   p.additionalSymmetryRestriction = 1;
+                  p.high[1] -= 4; // Removes 4 face down placement of piece P
                 }
 
                 putInReserve(p);
@@ -445,18 +469,17 @@ public class Pentomino implements Bag<Pentomino, Answer>, Serializable {
                   && specificPositions[nextP] == pos)) {
                 final Pentomino p = getInitPentomino();
 
-                final PiecePlaced Xplacement = p.placement[2];
+                final PiecePlaced Xplacement = p.placement[17];
 
                 Xplacement.index = placementIndex + 1;
                 Xplacement.variation = 0;
-                p.stack[0] = 2;
+                p.stack[0] = 17;
                 p.depth = 1;
-                p.lowPiece[0] = 1;
-                p.highPiece[0] = 1;
-                p.lowPosition[0] = 1;
-                p.highPosition[0] = 1;
-                p.lowPiece[1] = 0;
-                p.highPiece[1] = 17;
+                p.low[0] = 1;
+                p.high[0] = 1;
+                p.low[1] = 0;
+                p.high[1] = 62; // 63 different possibilities minus the X only
+                                // orientation
 
                 // Remove additional symmetry in cases where PieceX is placed on
                 // the center column or the center line, not that the actual
@@ -465,9 +488,11 @@ public class Pentomino implements Bag<Pentomino, Answer>, Serializable {
                 if (height % 2 == 1 && i + 1 == (height - 1) / 2) {
                   // Horizontal symmetry needs to be removed
                   p.additionalSymmetryRestriction = 1;
+                  p.high[1] -= 2;// Removes 2 orientation of the V piece
                 } else if ((width % 2 == 1 && j + 1 == (width - 1) / 2)) {
                   // Vertical symmetry needs to be removed
                   p.additionalSymmetryRestriction = -1;
+                  p.high[1] -= 2; // Removes 2 orientation of the V piece
                 } else {
                   p.additionalSymmetryRestriction = 0;
                 }
@@ -484,7 +509,8 @@ public class Pentomino implements Bag<Pentomino, Answer>, Serializable {
     } else {
       // Does the full exploration
       final Pentomino p = getInitPentomino();
-      p.highPiece[0] = NB_PIECE;
+      p.high[0] = 63; // Sum of all the possible orientations of all the pieces
+      p.depth = 0;
       p.additionalSymmetryRestriction = 0;
       putInReserve(p);
     }
@@ -502,17 +528,14 @@ public class Pentomino implements Bag<Pentomino, Answer>, Serializable {
                                   // correct value
     switch (type) {
     case STANDARD:
-      pieces[0] = new PieceI(width + Board.SENTINEL, height);
+      pieces[0] = new PieceI(width + Board.SENTINEL);
       pieces[1] = new PieceU(width + Board.SENTINEL);
       pieces[2] = new PieceT(width + Board.SENTINEL);
       pieces[3] = new PieceF(PieceType.STANDARD, width + Board.SENTINEL);
-      pieces[4] = new PieceY(PieceType.STANDARD, width + Board.SENTINEL,
-          height);
+      pieces[4] = new PieceY(PieceType.STANDARD, width + Board.SENTINEL);
       pieces[5] = new PieceZ(PieceType.STANDARD, width + Board.SENTINEL);
-      pieces[6] = new PieceL(PieceType.STANDARD, width + Board.SENTINEL,
-          height);
-      pieces[7] = new PieceN(PieceType.STANDARD, width + Board.SENTINEL,
-          height);
+      pieces[6] = new PieceL(PieceType.STANDARD, width + Board.SENTINEL);
+      pieces[7] = new PieceN(PieceType.STANDARD, width + Board.SENTINEL);
       pieces[8] = new PieceW(width + Board.SENTINEL);
       pieces[9] = new PieceV(width + Board.SENTINEL);
       P = new PieceP(PieceType.STANDARD, width + Board.SENTINEL);
@@ -521,32 +544,31 @@ public class Pentomino implements Bag<Pentomino, Answer>, Serializable {
       break;
     case ONE_SIDED:
       // Symmetric pieces wrt flip
-      pieces[0] = new PieceI(width + Board.SENTINEL, height);
+      pieces[0] = new PieceI(width + Board.SENTINEL);
       pieces[1] = new PieceU(width + Board.SENTINEL);
-      pieces[2] = new PieceX(width + Board.SENTINEL);
+      V = new PieceV(width + Board.SENTINEL);
+      pieces[2] = V;
       pieces[3] = new PieceT(width + Board.SENTINEL);
       pieces[4] = new PieceW(width + Board.SENTINEL);
-      V = new PieceV(width + Board.SENTINEL);
-      pieces[5] = V;
 
       // upside pieces
+      pieces[5] = new PieceN(PieceType.UPSIDE, width + Board.SENTINEL);
       pieces[6] = new PieceP(PieceType.UPSIDE, width + Board.SENTINEL);
       pieces[7] = new PieceF(PieceType.UPSIDE, width + Board.SENTINEL);
-      pieces[8] = new PieceY(PieceType.UPSIDE, width + Board.SENTINEL, height);
+      pieces[8] = new PieceY(PieceType.UPSIDE, width + Board.SENTINEL);
       pieces[9] = new PieceZ(PieceType.UPSIDE, width + Board.SENTINEL);
-      pieces[10] = new PieceL(PieceType.UPSIDE, width + Board.SENTINEL, height);
-      pieces[11] = new PieceN(PieceType.UPSIDE, width + Board.SENTINEL, height);
+      pieces[10] = new PieceL(PieceType.UPSIDE, width + Board.SENTINEL);
 
       // flipside pieces
+      pieces[11] = new PieceP(PieceType.FLIPSIDE, width + Board.SENTINEL);
       pieces[12] = new PieceF(PieceType.FLIPSIDE, width + Board.SENTINEL);
-      pieces[13] = new PieceY(PieceType.FLIPSIDE, width + Board.SENTINEL,
-          height);
+      pieces[13] = new PieceY(PieceType.FLIPSIDE, width + Board.SENTINEL);
       pieces[14] = new PieceZ(PieceType.FLIPSIDE, width + Board.SENTINEL);
-      pieces[15] = new PieceL(PieceType.FLIPSIDE, width + Board.SENTINEL,
-          height);
-      pieces[16] = new PieceN(PieceType.FLIPSIDE, width + Board.SENTINEL,
-          height);
-      pieces[17] = new PieceP(PieceType.FLIPSIDE, width + Board.SENTINEL);
+      pieces[15] = new PieceL(PieceType.FLIPSIDE, width + Board.SENTINEL);
+      pieces[16] = new PieceN(PieceType.FLIPSIDE, width + Board.SENTINEL);
+
+      // Lastly the X piece
+      pieces[17] = new PieceX(width + Board.SENTINEL);
       break;
     default:
       break;
@@ -572,10 +594,11 @@ public class Pentomino implements Bag<Pentomino, Answer>, Serializable {
    */
   @Override
   public boolean isSplittable() {
-    if (reserve != null && reserve.size() >= 2) {
-      return true;
+    if (low == null) {
+      // This instance only has instances in its queue
+      return reserve.size() >= 2;
     } else {
-      return (lowPiece != null && treeSplittable());
+      return reserve.size() > 1 || (reserve.size() > 1 && treeSplittable());
     }
   }
 
@@ -592,10 +615,11 @@ public class Pentomino implements Bag<Pentomino, Answer>, Serializable {
   /**
    * Returns the number of alternative pieces left to try at the current depth
    *
-   * @return
+   * @return the number of options left to choose from at the current
+   *         exploration level
    */
-  private int piecesLeft() {
-    return highPiece[depth] - lowPiece[depth];
+  private int optionsLeft() {
+    return high[depth] - low[depth];
   }
 
   /**
@@ -605,31 +629,8 @@ public class Pentomino implements Bag<Pentomino, Answer>, Serializable {
    *          level of exploration in the tree to check
    * @return the number of pieces left to explore at the specified level
    */
-  private int piecesLeft(int index) {
-    return highPiece[index] - lowPiece[index];
-  }
-
-  /**
-   * Returns the number of positions left to explore for the piece at the
-   * current depth
-   *
-   * @return
-   */
-  private int positionsLeft() {
-    return highPosition[depth] - lowPosition[depth];
-  }
-
-  /**
-   * Returns the number of positions left to explore the piece located at the
-   * specified level in the exploration tree
-   *
-   * @param index
-   *          tree depth to check
-   * @return the number of positions left to try for the piece at the pecified
-   *         level of the tree exploration
-   */
-  private int positionsLeft(int index) {
-    return highPosition[index] - lowPosition[index];
+  private int optionsLeft(int index) {
+    return high[index] - low[index];
   }
 
   /**
@@ -670,23 +671,6 @@ public class Pentomino implements Bag<Pentomino, Answer>, Serializable {
     reserve.add(p);
   }
 
-  /**
-   * Resets this instance into it's condition just after leaving the constructor
-   * It will be ready to launch a new computation after being called
-   */
-  public void reset() {
-    reserve.clear();
-    solutions = 0;
-    depth = 0;
-    board.clear();
-    lowPiece[0] = 0;
-    highPiece[0] = NB_PIECE;
-
-    lowPosition[0] = 0;
-    highPosition[0] = 0;
-    P.vars = 8;
-  }
-
   /*
    * (non-Javadoc)
    *
@@ -696,54 +680,22 @@ public class Pentomino implements Bag<Pentomino, Answer>, Serializable {
   public Pentomino split(boolean takeAll) {
     final Pentomino toReturn = new Pentomino(pentominoType);
 
-    if (reserve.size() > 1 || (reserve.size() == 1 && takeAll)) {
+    if (reserve.size() > 1 || (reserve.size() == 1 && (takeAll || depth > 0))) {
       int qtt = (reserve.size() + 1) / 2;
       while (qtt > 0) {
         toReturn.reserve.addLast(reserve.pollFirst());
         qtt--;
       }
     } else {
-      if (takeAll) {
-        System.err.println("ERROR TAKEALL");
-        return toReturn;
-      }
-
-      if (!treeSplittable()) {
-        System.err.println("ERROR NOT SPLITTABLE");
-        return toReturn;
-      }
-
       // We need to split the current exploration tree
       final Pentomino p = new Pentomino(pentominoType);
 
-      p.highPiece = Arrays.copyOf(highPiece, NB_PIECE);
-      p.lowPiece = Arrays.copyOf(lowPiece, NB_PIECE);
-      p.highPosition = Arrays.copyOf(highPosition, NB_PIECE);
-      p.lowPosition = Arrays.copyOf(lowPosition, NB_PIECE);
+      p.high = Arrays.copyOf(high, NB_PIECE);
+      p.low = Arrays.copyOf(low, NB_PIECE);
 
-      int lastSplitIndex = -1;
       for (int i = 0; i <= depth; i++) {
-        final int piecesLeft = piecesLeft(i);
-        final int positionsLeft = positionsLeft(i);
-        if (piecesLeft > 1) {
-          lastSplitIndex = i;
-          p.lowPiece[i] = highPiece[i] -= (piecesLeft) / 2;
-          p.lowPosition[i] = p.highPosition[i];
-        } else if (piecesLeft == 1 && positionsLeft > 0) {
-          // We leave the positions to "this" and give the remaining piece
-          lastSplitIndex = i;
-          highPiece[i]--;
-          p.lowPosition[i] = p.highPosition[i];
-        } else if (piecesLeft == 0 && positionsLeft > 1) {
-          lastSplitIndex = i;
-          // We cannot split by giving away pieces
-          // Give half the final remaining positions
-          // p.lowPiece[i] = p.highPiece[i];
-          p.lowPosition[i] = highPosition[i] -= positionsLeft / 2;
-        } else {
-          p.lowPiece[i] = p.highPiece[i];
-          p.lowPosition[i] = p.highPosition[i];
-        }
+        final int options = optionsLeft(i);
+        p.low[i] = high[i] -= options / 2;
       }
 
       // Copy the stack
@@ -752,15 +704,10 @@ public class Pentomino implements Bag<Pentomino, Answer>, Serializable {
       // Copy the placement of the pieces up to the depth of the split
       p.placement = new PiecePlaced[NB_PIECE];
       for (int i = 0; i < NB_PIECE; i++) {
-        p.placement[i] = new PiecePlaced();
-      }
-      for (int i = 0; i < lastSplitIndex; i++) {
-        final int toCopyIdx = stack[i];
-        p.placement[toCopyIdx].index = placement[toCopyIdx].index;
-        p.placement[toCopyIdx].variation = placement[toCopyIdx].variation;
+        p.placement[i] = new PiecePlaced(placement[i]);
       }
 
-      p.depth = lastSplitIndex;
+      p.depth = depth;
       p.additionalSymmetryRestriction = additionalSymmetryRestriction;
 
       toReturn.putInReserve(p);
@@ -773,22 +720,21 @@ public class Pentomino implements Bag<Pentomino, Answer>, Serializable {
    * Performs one step in the pentomino search
    */
   public void step() {
-    if (positionsLeft() > 0) {
+    if (optionsLeft() > 0) {
       treeNode++;
       // We try a new position of the current piece
 
       // Select the current piece and the position to try
-      final int ppIndex = getRemaining(lowPiece[depth]);
+      final int ppIndex = getRemaining(low[depth]);
       final PiecePlaced pp = placement[ppIndex];
       final Piece piece = pieces[ppIndex];
-      final int position = lowPosition[depth];
+      final int var = pp.variation;
       final int index = board.nextIndex;
-      lowPosition[depth]++;
+      low[depth]++;
 
-      if (board.placePiece(piece, position)) {
+      if (board.placePiece(piece, var)) {
         // place p has been placed, we remove it from the pieces left to place
         // and add it to the stack
-        pp.variation = position;
         pp.index = index;
         stack[depth] = ppIndex;
         depth++;
@@ -801,7 +747,7 @@ public class Pentomino implements Bag<Pentomino, Answer>, Serializable {
           // We need to backtrack, removing the last piece
           depth--;
           board.removePiece(piece, pp.variation, pp.index);
-          pp.variation = -1;
+          pp.index = -1;
 
           // depth--;
           // final int oneButLastIndex = stack[depth];
@@ -816,23 +762,11 @@ public class Pentomino implements Bag<Pentomino, Answer>, Serializable {
 
           // lowPiece[depth]++;
         } else {
-          // Prepare for the selection of the next piece
-          lowPiece[depth] = 0;
-          highPiece[depth] = NB_PIECE - depth;
+          // Prepare for the selection of the piece at the next level
+          low[depth] = 0;
+          high[depth] = getTotalOptions();
         }
       }
-    } else if (piecesLeft() > 0) {
-      // We try to place a different piece
-      // Depth remains unchanged
-
-      lowPiece[depth]++; // The previous piece has been completely explored
-
-      // Select the next piece and setup the lowPosition and highPosition arrays
-      final Piece p = pieces[getRemaining(lowPiece[depth])];
-
-      lowPosition[depth] = 0;
-      highPosition[depth] = p.variations();
-      // The position #0 of piece p will be tried in the next call to step
     } else {
       // backtrack
       // remove the piece placed from the stack and make it available again
@@ -844,7 +778,7 @@ public class Pentomino implements Bag<Pentomino, Answer>, Serializable {
       final PiecePlaced pp = placement[lastPiecePlacedIndex];
       final Piece pieceToRemove = pieces[lastPiecePlacedIndex];
       board.removePiece(pieceToRemove, pp.variation, pp.index);
-      pp.variation = -1;
+      pp.index = -1;
     }
   }
 
@@ -869,10 +803,8 @@ public class Pentomino implements Bag<Pentomino, Answer>, Serializable {
     placement = p.placement;
     stack = p.stack;
     depth = p.depth;
-    lowPiece = p.lowPiece;
-    highPiece = p.highPiece;
-    highPosition = p.highPosition;
-    lowPosition = p.lowPosition;
+    low = p.low;
+    high = p.high;
     additionalSymmetryRestriction = p.additionalSymmetryRestriction;
     // Reconstitutes the board in the state p was
     board.clear();
@@ -922,10 +854,7 @@ public class Pentomino implements Bag<Pentomino, Answer>, Serializable {
    */
   private boolean treeSplittable() {
     for (int i = 0; i <= depth; i++) {
-      final int pieces = piecesLeft(i);
-      final int positions = positionsLeft(i);
-
-      if (pieces + positions >= 2) {
+      if (optionsLeft(i) >= 2) {
         return true;
       }
     }

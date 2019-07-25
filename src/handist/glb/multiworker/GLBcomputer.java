@@ -1150,6 +1150,7 @@ public class GLBcomputer extends PlaceLocalObject {
                                        // block
               intraPlaceQueue.merge(bag.split(false));
               logger.intraQueueFed.incrementAndGet();
+              intraQueueEmpty = intraPlaceQueue.isEmpty();
             }
           }
         }
@@ -1162,8 +1163,9 @@ public class GLBcomputer extends PlaceLocalObject {
             synchronized (intraPlaceQueue) {
               interPlaceQueue.merge(bag.split(false));
               logger.interQueueFed.incrementAndGet();
+              interQueueEmpty = interPlaceQueue.isEmpty();
             }
-            interQueueEmpty = false;
+
             feedInterQueueRequested.set(workerBag.workerId, 0);
           }
         }

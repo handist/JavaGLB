@@ -594,12 +594,7 @@ public class Pentomino implements Bag<Pentomino, Answer>, Serializable {
    */
   @Override
   public boolean isSplittable() {
-    if (low == null) {
-      // This instance only has instances in its queue
-      return reserve.size() >= 2;
-    } else {
-      return reserve.size() > 1 || (reserve.size() > 1 && treeSplittable());
-    }
+    return !reserve.isEmpty() || treeSplittable();
   }
 
   /*
@@ -610,6 +605,9 @@ public class Pentomino implements Bag<Pentomino, Answer>, Serializable {
   @Override
   public void merge(Pentomino b) {
     reserve.addAll(b.reserve);
+    if (depth < 0 && !reserve.isEmpty()) {
+      restoreToExploration(reserve.poll());
+    }
   }
 
   /**
@@ -654,7 +652,7 @@ public class Pentomino implements Bag<Pentomino, Answer>, Serializable {
   public void process(int workAmount, Answer sharedObject) {
     while (workAmount > 0 && !isEmpty()) {
       if (depth < 0) {
-        takeFromReserve();
+        restoreToExploration(reserve.poll());
       }
       step();
       workAmount--;
@@ -680,10 +678,10 @@ public class Pentomino implements Bag<Pentomino, Answer>, Serializable {
   public Pentomino split(boolean takeAll) {
     final Pentomino toReturn = new Pentomino(pentominoType);
 
-    if (reserve.size() > 1 || (reserve.size() == 1 && (takeAll || depth > 0))) {
+    if (!reserve.isEmpty()) {
       int qtt = (reserve.size() + 1) / 2;
       while (qtt > 0) {
-        toReturn.reserve.addLast(reserve.pollFirst());
+        toReturn.reserve.add(reserve.poll());
         qtt--;
       }
     } else {
@@ -693,24 +691,41 @@ public class Pentomino implements Bag<Pentomino, Answer>, Serializable {
       p.high = Arrays.copyOf(high, NB_PIECE);
       p.low = Arrays.copyOf(low, NB_PIECE);
 
+      boolean leavesLeft = false;
       for (int i = 0; i <= depth; i++) {
         final int options = optionsLeft(i);
-        p.low[i] = high[i] -= options / 2;
+        if (options >= 2) {
+          p.low[i] = high[i] -= options / 2;
+        } else if (options == 1 && takeAll) {
+          high[i] = low[i];
+        } else {
+          p.low[i] = p.high[i];
+        }
+
+        leavesLeft |= optionsLeft(i) > 0;
       }
 
       // Copy the stack
       p.stack = Arrays.copyOf(stack, NB_PIECE);
-
-      // Copy the placement of the pieces up to the depth of the split
+      // Copy the placement of the pieces
       p.placement = new PiecePlaced[NB_PIECE];
       for (int i = 0; i < NB_PIECE; i++) {
         p.placement[i] = new PiecePlaced(placement[i]);
       }
-
       p.depth = depth;
       p.additionalSymmetryRestriction = additionalSymmetryRestriction;
 
       toReturn.putInReserve(p);
+
+      // Preparations for the queue
+      if (!leavesLeft) {
+        if (reserve.isEmpty()) {
+          depth = -1;
+        } else {
+          restoreToExploration(reserve.poll());
+        }
+      }
+
     }
 
     return toReturn;
@@ -794,11 +809,12 @@ public class Pentomino implements Bag<Pentomino, Answer>, Serializable {
   }
 
   /**
-   * Discards the current exploration and replaces it with the last added
-   * exploration available in reserve
+   * Discards the current exploration and replaces it with the given instance
+   *
+   * @param p
+   *          exploration to continue from now on
    */
-  public void takeFromReserve() {
-    final Pentomino p = reserve.pop();
+  public void restoreToExploration(Pentomino p) {
 
     placement = p.placement;
     stack = p.stack;
@@ -807,26 +823,28 @@ public class Pentomino implements Bag<Pentomino, Answer>, Serializable {
     high = p.high;
     additionalSymmetryRestriction = p.additionalSymmetryRestriction;
     // Reconstitutes the board in the state p was
-    board.clear();
-    for (int i = 0; i < depth; i++) {
-      final PiecePlaced pp = placement[stack[i]];
-      final Piece pieceToPlace = pieces[stack[i]];
-      board.placeArbitrarily(pieceToPlace, pp.variation, pp.index);
-    }
-
-    if (pentominoType == PentominoType.STANDARD) {
-      if (additionalSymmetryRestriction == 1) {
-        P.vars = 4;
-      } else {
-        P.vars = 8;
+    if (board != null) {
+      board.clear();
+      for (int i = 0; i < depth; i++) {
+        final PiecePlaced pp = placement[stack[i]];
+        final Piece pieceToPlace = pieces[stack[i]];
+        board.placeArbitrarily(pieceToPlace, pp.variation, pp.index);
       }
-    } else if (pentominoType == PentominoType.ONE_SIDED) {
-      if (additionalSymmetryRestriction > 0) {
-        V.removeHorizontalSymmetry();
-      } else if (additionalSymmetryRestriction < 0) {
-        V.removeVerticalSymmetry();
-      } else {
-        V.reset();
+
+      if (pentominoType == PentominoType.STANDARD) {
+        if (additionalSymmetryRestriction == 1) {
+          P.vars = 4;
+        } else {
+          P.vars = 8;
+        }
+      } else if (pentominoType == PentominoType.ONE_SIDED) {
+        if (additionalSymmetryRestriction > 0) {
+          V.removeHorizontalSymmetry();
+        } else if (additionalSymmetryRestriction < 0) {
+          V.removeVerticalSymmetry();
+        } else {
+          V.reset();
+        }
       }
     }
   }
@@ -840,7 +858,7 @@ public class Pentomino implements Bag<Pentomino, Answer>, Serializable {
         step();
       }
       if (!reserve.isEmpty()) {
-        takeFromReserve();
+        restoreToExploration(reserve.poll());
 
         // Will restart the computation
       } else {

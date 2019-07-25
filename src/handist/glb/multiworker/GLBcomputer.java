@@ -1226,8 +1226,7 @@ public class GLBcomputer extends PlaceLocalObject {
           synchronized (intraPlaceQueue) {
             if (!intraQueueEmpty) {
               loot = intraPlaceQueue.split(true); // If only a fragment can't
-                                                  // be
-                                                  // taken, we take the whole
+                                                  // be taken, we take the whole
                                                   // content of the
                                                   // intraPlaceQueue
               intraQueueEmpty = intraPlaceQueue.isEmpty(); // Flag update

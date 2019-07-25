@@ -81,16 +81,9 @@ public class Pentomino implements Bag<Pentomino, Answer>, Serializable {
       index = -1;
     }
 
-    /**
-     * Copy constructor Constructs a PiecePlaced object with the same values for
-     * all members
-     *
-     * @param piecePlaced
-     *          the instance of which a copy is needed
-     */
-    public PiecePlaced(PiecePlaced piecePlaced) {
-      index = piecePlaced.index;
-      variation = piecePlaced.variation;
+    @Override
+    public String toString() {
+      return variation + "@" + index;
     }
   }
 
@@ -340,6 +333,9 @@ public class Pentomino implements Bag<Pentomino, Answer>, Serializable {
     PiecePlaced pp;
     int i = 0;
     do {
+      if (i >= placement.length) {
+        System.err.println("CHAOS AND DESPAIR");
+      }
       pp = placement[i];
       i++;
       if (pp.variation < 0) {
@@ -700,51 +696,74 @@ public class Pentomino implements Bag<Pentomino, Answer>, Serializable {
   public Pentomino split(boolean takeAll) {
     final Pentomino toReturn = new Pentomino(pentominoType);
 
-    if (reserve.size() >= 2 || takeAll) {
+    if (reserve.size() > 1 || (reserve.size() == 1 && takeAll)) {
       int qtt = (reserve.size() + 1) / 2;
       while (qtt > 0) {
         toReturn.reserve.addLast(reserve.pollFirst());
         qtt--;
       }
     } else {
+      if (takeAll) {
+        System.err.println("ERROR TAKEALL");
+        return toReturn;
+      }
+
+      if (!treeSplittable()) {
+        System.err.println("ERROR NOT SPLITTABLE");
+        return toReturn;
+      }
+
       // We need to split the current exploration tree
       final Pentomino p = new Pentomino(pentominoType);
-      p.depth = depth;
 
-      // Copy the stack
-      p.stack = Arrays.copyOf(stack, NB_PIECE);
-      // Copy the placement of the pieces
-      p.placement = new PiecePlaced[NB_PIECE];
-      for (int i = 0; i < NB_PIECE; i++) {
-        p.placement[i] = new PiecePlaced(placement[i]);
-      }
       p.highPiece = Arrays.copyOf(highPiece, NB_PIECE);
       p.lowPiece = Arrays.copyOf(lowPiece, NB_PIECE);
       p.highPosition = Arrays.copyOf(highPosition, NB_PIECE);
       p.lowPosition = Arrays.copyOf(lowPosition, NB_PIECE);
+
+      int lastSplitIndex = -1;
       for (int i = 0; i <= depth; i++) {
         final int piecesLeft = piecesLeft(i);
         final int positionsLeft = positionsLeft(i);
-        if (piecesLeft >= 1) {
-          if (takeAll && piecesLeft == 1) {
-            lowPiece[i]++;
-          } else {
-            p.lowPiece[i] = highPiece[i] -= piecesLeft / 2;
-          }
+        if (piecesLeft > 1) {
+          lastSplitIndex = i;
+          p.lowPiece[i] = highPiece[i] -= (piecesLeft) / 2;
           p.lowPosition[i] = p.highPosition[i];
-        } else {
+        } else if (piecesLeft == 1 && positionsLeft > 0) {
+          // We leave the positions to "this" and give the remaining piece
+          lastSplitIndex = i;
+          highPiece[i]--;
+          p.lowPosition[i] = p.highPosition[i];
+        } else if (piecesLeft == 0 && positionsLeft > 1) {
+          lastSplitIndex = i;
           // We cannot split by giving away pieces
           // Give half the final remaining positions
-          if (positionsLeft == 1 && takeAll) {
-            lowPosition[i]++;
-          } else {
-            p.lowPosition[i] = highPosition[i] -= positionsLeft / 2;
-          }
+          // p.lowPiece[i] = p.highPiece[i];
+          p.lowPosition[i] = highPosition[i] -= positionsLeft / 2;
+        } else {
+          p.lowPiece[i] = p.highPiece[i];
+          p.lowPosition[i] = p.highPosition[i];
         }
       }
 
+      // Copy the stack
+      p.stack = Arrays.copyOf(stack, NB_PIECE);
+
+      // Copy the placement of the pieces up to the depth of the split
+      p.placement = new PiecePlaced[NB_PIECE];
+      for (int i = 0; i < NB_PIECE; i++) {
+        p.placement[i] = new PiecePlaced();
+      }
+      for (int i = 0; i < lastSplitIndex; i++) {
+        final int toCopyIdx = stack[i];
+        p.placement[toCopyIdx].index = placement[toCopyIdx].index;
+        p.placement[toCopyIdx].variation = placement[toCopyIdx].variation;
+      }
+
+      p.depth = lastSplitIndex;
       p.additionalSymmetryRestriction = additionalSymmetryRestriction;
-      toReturn.reserve.addLast(p);
+
+      toReturn.putInReserve(p);
     }
 
     return toReturn;
@@ -779,21 +798,21 @@ public class Pentomino implements Bag<Pentomino, Answer>, Serializable {
           // printStack();
           solutions++;
 
-          // We need to backtrack, removing the last 2 pieces
+          // We need to backtrack, removing the last piece
           depth--;
           board.removePiece(piece, pp.variation, pp.index);
           pp.variation = -1;
 
-          depth--;
-          final int oneButLastIndex = stack[depth];
-          final PiecePlaced oneButLast = placement[oneButLastIndex];
-          final Piece oneButLastPiece = pieces[oneButLastIndex];
-          board.removePiece(oneButLastPiece, oneButLast.variation,
-              oneButLast.index);
-          oneButLast.variation = -1;
-
-          // cleanup for future exploration
-          highPosition[NB_PIECE - 1] = 0;
+          // depth--;
+          // final int oneButLastIndex = stack[depth];
+          // final PiecePlaced oneButLast = placement[oneButLastIndex];
+          // final Piece oneButLastPiece = pieces[oneButLastIndex];
+          // board.removePiece(oneButLastPiece, oneButLast.variation,
+          // oneButLast.index);
+          // oneButLast.variation = -1;
+          //
+          // // cleanup for future exploration
+          // highPosition[NB_PIECE - 1] = 0;
 
           // lowPiece[depth]++;
         } else {
@@ -906,7 +925,7 @@ public class Pentomino implements Bag<Pentomino, Answer>, Serializable {
       final int pieces = piecesLeft(i);
       final int positions = positionsLeft(i);
 
-      if (pieces >= 2 || positions >= 2) {
+      if (pieces + positions >= 2) {
         return true;
       }
     }

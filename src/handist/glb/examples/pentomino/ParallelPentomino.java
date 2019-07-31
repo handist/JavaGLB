@@ -42,9 +42,10 @@ public class ParallelPentomino {
       removeSymmetries = Boolean.parseBoolean(args[2]);
     } catch (final Exception e) {
       System.err.println("Error parsing arguments");
-      System.err.println("Arguments are <WIDTH> <HEIGHT>");
+      System.err.println("Arguments are <WIDTH> <HEIGHT> <Symmetry Removal>");
       return;
     }
+
     try {
       computer = GLBfactory.setupGLB();
     } catch (final Exception e) {
@@ -63,13 +64,32 @@ public class ParallelPentomino {
       return;
     }
 
+    int[] specificPositions;
+    if (args.length > 3) {
+      // Parse the additional arguments determining the positions of the X piece
+      // to be tried
+      final int nbPositions = args.length - 3;
+      specificPositions = new int[nbPositions];
+      for (int i = 0; i < nbPositions; i++) {
+        specificPositions[i] = Integer.parseInt(args[3 + i]);
+      }
+    } else {
+      specificPositions = null;
+    }
+
+    System.out.print("ARGS: ");
+    for (final String s : args) {
+      System.out.print(s + " ");
+    }
+    System.out.println();
+
     System.out.println(computer.getConfiguration());
 
     final Pentomino p = new Pentomino(type, width, height);
-    p.init(type, removeSymmetries);
+    p.init(type, removeSymmetries, specificPositions);
 
     final Answer ans = computer.compute(p, () -> new Answer(),
-        () -> new Pentomino(type, width, height));
+        () -> new Pentomino(type), () -> new Pentomino(type, width, height));
 
     System.out.println(
         "Solution to H:" + height + " W:" + width + "; " + ans.solutions + ";");

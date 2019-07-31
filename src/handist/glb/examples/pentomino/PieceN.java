@@ -31,18 +31,18 @@ public class PieceN extends Piece {
   public static void main(String[] args) {
     System.out.println("Large board");
     System.out.println("Standard");
-    new PieceN(PieceType.STANDARD, 10, 6).printVariations(10);
+    new PieceN(PieceType.STANDARD, 10).printVariations(10);
     System.out.println("Upside");
-    new PieceN(PieceType.UPSIDE, 15, 6).printVariations(15);
+    new PieceN(PieceType.UPSIDE, 15).printVariations(15);
     System.out.println("Flipside");
-    new PieceN(PieceType.FLIPSIDE, 15, 6).printVariations(15);
+    new PieceN(PieceType.FLIPSIDE, 15).printVariations(15);
     System.out.println("Shallow board");
     System.out.println("Standard");
-    new PieceN(PieceType.STANDARD, 20, 3).printVariations(20);
+    new PieceN(PieceType.STANDARD, 20).printVariations(20);
     System.out.println("Upside");
-    new PieceN(PieceType.UPSIDE, 30, 3).printVariations(30);
+    new PieceN(PieceType.UPSIDE, 30).printVariations(30);
     System.out.println("Flipside");
-    new PieceN(PieceType.FLIPSIDE, 30, 3).printVariations(30);
+    new PieceN(PieceType.FLIPSIDE, 30).printVariations(30);
   }
 
   /** Variations of this piece */
@@ -59,10 +59,8 @@ public class PieceN extends Piece {
    *          type of the piece to create
    * @param width
    *          width of the board played
-   * @param height
-   *          height of the board
    */
-  public PieceN(PieceType type, int width, int height) {
+  public PieceN(PieceType type, int width) {
     final int[] a = { 0, 1, 2, width + 2, width + 3 };
     final int[] b = { 1, 2, 3, width, width + 1 };
     final int[] c = { 0, 1, width + 1, width + 2, width + 3 };
@@ -99,9 +97,6 @@ public class PieceN extends Piece {
     }
     if (type != PieceType.STANDARD) {
       vars = 4;
-    }
-    if (height < 4) {
-      vars /= 2;
     }
   }
 

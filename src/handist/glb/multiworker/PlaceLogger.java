@@ -13,6 +13,7 @@ package handist.glb.multiworker;
 
 import java.io.PrintStream;
 import java.io.Serializable;
+import java.util.Arrays;
 import java.util.concurrent.atomic.AtomicLong;
 
 /**
@@ -27,24 +28,60 @@ import java.util.concurrent.atomic.AtomicLong;
  */
 public class PlaceLogger implements Serializable {
 
+  /**
+   * Wrapper class used to carry the information regarding when the tuner chose
+   * to modify the value of {@link Configuration#n}.
+   *
+   * @author Patrick Finnerty
+   *
+   */
+  class TunerStamp implements Serializable {
+
+    /** Serial version UID */
+    private static final long serialVersionUID = -5482168027300527929L;
+
+    /** New value used hereinafter */
+    final int n;
+    /** Timestamp at which the value of parameter "n" was changed */
+    final long stamp;
+
+    /**
+     * Constructor
+     *
+     * @param timestamp
+     *          stamp at which the value was changed
+     * @param value
+     *          new value chosen by the tuner
+     */
+    public TunerStamp(long timestamp, int value) {
+      stamp = timestamp;
+      n = value;
+    }
+  }
+
   /** Generated Serial Version UID */
   private static final long serialVersionUID = 2764081210591528731L;
 
-  /** Indicates if the logger was reset */
-  private boolean isReset = true;
-
   /** Records the number of times some work was put into the inter queue */
   public AtomicLong interQueueFed = new AtomicLong(0);
+
   /** Records the number of times some work was taken from the inter queue */
   public AtomicLong interQueueSplit = new AtomicLong(0);
   /** Records the number of times some work was put into the intra queue */
   public AtomicLong intraQueueFed = new AtomicLong(0);
   /** Records the number of times some work was taken from the intra queue */
   public AtomicLong intraQueueSplit = new AtomicLong(0);
+  /** Indicates if the logger was reset */
+  private boolean isReset = true;
 
   /** Time stamp of the last event that was recorded */
   public long lastEventTimeStamp;
 
+  /** Time stamp of the last event regarding worker stealing was recorded */
+  public long lastWorkerStealingTimeStamp;
+
+  /** Timestamp used to track the yielding of a worker on the place */
+  private long lastYield;
   /* Trackers for lifeline steals */
   /** Number of lifeline steals attempted by this place */
   public AtomicLong lifelineStealsAttempted = new AtomicLong(0);
@@ -52,17 +89,12 @@ public class PlaceLogger implements Serializable {
   public AtomicLong lifelineStealsReceived = new AtomicLong(0);
   /** Number of lifeline steals attempted by this place that were successful */
   public AtomicLong lifelineStealsSuccess = new AtomicLong(0);
+
   /**
    * Number of lifeline steals attempted by other places on this place that were
    * successful
    */
   public AtomicLong lifelineStealsSuffered = new AtomicLong(0);
-
-  /**
-   * Time stamp used during login to track the activity of the lifeline answer
-   * thread
-   */
-  private long lifelineThreadTimestamp;
 
   /**
    * Accumulated amount of time in nanoseconds during which the
@@ -84,6 +116,12 @@ public class PlaceLogger implements Serializable {
   public long lifelineThreadInactive = 0;
 
   /**
+   * Time stamp used during login to track the activity of the lifeline answer
+   * thread
+   */
+  private long lifelineThreadTimestamp;
+
+  /**
    * Counts the number of times the {@link GLBcomputer#lifelineAnswerThread()}
    * went through the <em>Active</em>\/<em>Inactive</em>\/<em>Hold</em> cycle.
    */
@@ -99,7 +137,6 @@ public class PlaceLogger implements Serializable {
    * correction in {@link Logger#addPlaceLogger(PlaceLogger)}.
    */
   long startTimeStamp;
-
   /* Trackers for random steals */
   /** Number of random steals attempted by this place */
   public AtomicLong stealsAttempted = new AtomicLong(0);
@@ -107,20 +144,12 @@ public class PlaceLogger implements Serializable {
   public AtomicLong stealsReceived = new AtomicLong(0);
   /** Number of random steals attempted by this place that were successful */
   public AtomicLong stealsSuccess = new AtomicLong(0);
+
   /**
    * Number of random steals that other places successfully attempted on this
    * place
    */
   public AtomicLong stealsSuffered = new AtomicLong(0);
-
-  /** Counts the number of times a worker was spawned */
-  public long workerSpawned = 0;
-
-  /** Counter of the time spent yielding by workers on this place */
-  public long yieldingTime = 0;
-
-  /** Timestamp used to track the yielding of a worker on the place */
-  private long lastYield;
 
   /**
    * Array that Tracks the time spent by the place running 'index' number of
@@ -132,8 +161,58 @@ public class PlaceLogger implements Serializable {
    */
   public long time[];
 
-  /** Indicates the number of workers currently running on the place. */
+  /**
+   * Array that indicates the time spent by the place with 'index' workers
+   * stealing from the queues.
+   *
+   * @see #workerStealing()
+   * @see #workerResumed()
+   */
+  public long timeStealing[];
+
+  /**
+   * Contains instances of class {@link TunerStamp} for each time the place's
+   * tuner changes the values used.
+   */
+  TunerStamp[] tuning = new TunerStamp[100];
+
+  /** Next free place in {@link #tuning} array */
+  int tuningIndex = 0;
+
+  /** Indicates the number of workers tasks currently running on the place. */
   public int workerCount = 0;
+
+  /** Counts the number of times a worker was spawned */
+  public long workerSpawned = 0;
+
+  /**
+   * Indicates how many of the worker tasks spawned are not working but actually
+   * stealing work from the shared queues. At any given time, the number of
+   * workers that are actually working is given by the difference between
+   * {@link #workerCount} and {@link #workerStealingCount}.
+   */
+  public int workerStealingCount = 0;
+
+  /** Counter of the time spent yielding by workers on this place */
+  public long yieldingTime = 0;
+
+  /**
+   * Constructor
+   *
+   * Sets up a PlaceLogger for runtime tracking.
+   *
+   * @param placeConfig
+   *          Configuration instance containing the information of the
+   *          parameters used for the {@link GLBcomputer} during the computation
+   * @param placeId
+   *          integer identifier of the place this PlaceLogger instance is
+   *          recording activity for
+   */
+  public PlaceLogger(Configuration placeConfig, int placeId) {
+    place = placeId;
+    time = new long[placeConfig.x + 1];
+    timeStealing = new long[placeConfig.x + 1];
+  }
 
   /**
    * Called when the lifeline answer thread becomes active again after being on
@@ -180,14 +259,6 @@ public class PlaceLogger implements Serializable {
   }
 
   /**
-   * Called when a new {@link GLBcomputer#lifelineAnswerThread()}activity is
-   * started.
-   */
-  synchronized void lifelineAnswerThreadStarted() {
-    lifelineThreadTimestamp = System.nanoTime();
-  }
-
-  /**
    * Checks if the timeout specified by {@link #configuration} has ran out. If
    * so the tune method of {@link #tunerTimeStamp} is called and the timestamp
    * updated. This method is only called within a synchronized block.
@@ -202,52 +273,26 @@ public class PlaceLogger implements Serializable {
    */
 
   /**
-   * Signals that an extra worker has started working on the place.
+   * Called when a new {@link GLBcomputer#lifelineAnswerThread()}activity is
+   * started.
    */
-  synchronized void workerStarted() {
-    final long stamp = System.nanoTime();
-    if (isReset) {
-      lastEventTimeStamp = stamp;
-      startTimeStamp = stamp;
-      isReset = false;
+  synchronized void lifelineAnswerThreadStarted() {
+    lifelineThreadTimestamp = System.nanoTime();
+  }
+
+  /**
+   * To be called when the tuner changes the value of {@link Configuration#n}.
+   *
+   * @param timestamp
+   *          time stamp of when the modification was done
+   * @param newValue
+   *          new value decided by the tuner
+   */
+  public void NvalueTuned(long timestamp, int newValue) {
+    if (tuning.length == tuningIndex) {
+      tuning = Arrays.copyOf(tuning, tuningIndex * 2);
     }
-    time[workerCount] += (stamp - lastEventTimeStamp);
-    lastEventTimeStamp = stamp;
-    workerSpawned++;
-    workerCount++;
-  }
-
-  /**
-   * Signals that a worker on the place has stopped running.
-   */
-  synchronized void workerStopped() {
-    final long stamp = System.nanoTime();
-    time[workerCount] += stamp - lastEventTimeStamp;
-    lastEventTimeStamp = stamp;
-    workerCount--;
-  }
-
-  /**
-   * Method called when a worker starts yielding to allow for other activities
-   * to be run by the place.
-   */
-  synchronized void workerYieldStart() {
-    final long stamp = System.nanoTime();
-    time[workerCount] += stamp - lastEventTimeStamp;
-    lastEventTimeStamp = stamp;
-    workerCount--;
-    lastYield = stamp;
-  }
-
-  /**
-   * Method called when a worker that was yielding resumes its normal execution.
-   */
-  synchronized void workerYieldStop() {
-    final long stamp = System.nanoTime();
-    time[workerCount] += (stamp - lastEventTimeStamp);
-    lastEventTimeStamp = stamp;
-    workerCount++;
-    yieldingTime += stamp - lastYield;
+    tuning[tuningIndex++] = new TunerStamp(timestamp, newValue);
   }
 
   /**
@@ -282,20 +327,78 @@ public class PlaceLogger implements Serializable {
   }
 
   /**
-   * Constructor
-   *
-   * Sets up a PlaceLogger for runtime tracking.
-   *
-   * @param placeConfig
-   *          Configuration instance containing the information of the
-   *          parameters used for the {@link GLBcomputer} during the computation
-   * @param placeId
-   *          integer identifier of the place this PlaceLogger instance is
-   *          recording activity for
+   * Signals that a worker that was stealing work from the shared queue was able
+   * to steal some work and will now resume its computation
    */
-  public PlaceLogger(Configuration placeConfig, int placeId) {
-    place = placeId;
-    time = new long[placeConfig.x + 1];
+  synchronized void workerResumed() {
+    final long stamp = System.nanoTime();
+    timeStealing[workerStealingCount] += stamp - lastWorkerStealingTimeStamp;
+    lastWorkerStealingTimeStamp = stamp;
+    workerStealingCount--;
+  }
+
+  /**
+   * Signals that an extra worker has started working on the place.
+   */
+  synchronized void workerStarted() {
+    final long stamp = System.nanoTime();
+    if (isReset) {
+      lastEventTimeStamp = stamp;
+      lastWorkerStealingTimeStamp = stamp;
+      startTimeStamp = stamp;
+      isReset = false;
+    }
+    time[workerCount] += (stamp - lastEventTimeStamp);
+    lastEventTimeStamp = stamp;
+    workerSpawned++;
+    workerCount++;
+  }
+
+  /**
+   * Signals that a worker has ran out of work and will now attempt to steal
+   * from the shared queue.
+   */
+  synchronized void workerStealing() {
+    final long stamp = System.nanoTime();
+    timeStealing[workerStealingCount] += stamp - lastWorkerStealingTimeStamp;
+    lastWorkerStealingTimeStamp = stamp;
+    workerStealingCount++;
+  }
+
+  /**
+   * Signals that a worker on the place has stopped running.
+   */
+  synchronized void workerStopped() {
+    final long stamp = System.nanoTime();
+    time[workerCount] += stamp - lastEventTimeStamp;
+    timeStealing[workerStealingCount] += stamp - lastWorkerStealingTimeStamp;
+    lastEventTimeStamp = stamp;
+    lastWorkerStealingTimeStamp = stamp;
+    workerCount--;
+    workerStealingCount--;
+  }
+
+  /**
+   * Method called when a worker starts yielding to allow for other activities
+   * to be run by the place.
+   */
+  synchronized void workerYieldStart() {
+    final long stamp = System.nanoTime();
+    time[workerCount] += stamp - lastEventTimeStamp;
+    lastEventTimeStamp = stamp;
+    workerCount--;
+    lastYield = stamp;
+  }
+
+  /**
+   * Method called when a worker that was yielding resumes its normal execution.
+   */
+  synchronized void workerYieldStop() {
+    final long stamp = System.nanoTime();
+    time[workerCount] += (stamp - lastEventTimeStamp);
+    lastEventTimeStamp = stamp;
+    workerCount++;
+    yieldingTime += stamp - lastYield;
   }
 
 }

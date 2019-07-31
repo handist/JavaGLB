@@ -31,18 +31,18 @@ public class PieceL extends Piece {
   public static void main(String[] args) {
     System.out.println("Large board");
     System.out.println("Standard");
-    new PieceL(PieceType.STANDARD, 10, 6).printVariations(10);
+    new PieceL(PieceType.STANDARD, 10).printVariations(10);
     System.out.println("Upside");
-    new PieceL(PieceType.UPSIDE, 15, 6).printVariations(15);
+    new PieceL(PieceType.UPSIDE, 15).printVariations(15);
     System.out.println("Flipside");
-    new PieceL(PieceType.FLIPSIDE, 15, 6).printVariations(15);
+    new PieceL(PieceType.FLIPSIDE, 15).printVariations(15);
     System.out.println("Shallow board");
     System.out.println("Standard");
-    new PieceL(PieceType.STANDARD, 20, 3).printVariations(20);
+    new PieceL(PieceType.STANDARD, 20).printVariations(20);
     System.out.println("Upside");
-    new PieceL(PieceType.UPSIDE, 30, 3).printVariations(30);
+    new PieceL(PieceType.UPSIDE, 30).printVariations(30);
     System.out.println("Flipside");
-    new PieceL(PieceType.FLIPSIDE, 30, 3).printVariations(30);
+    new PieceL(PieceType.FLIPSIDE, 30).printVariations(30);
   }
 
   /** Variations of this piece */
@@ -59,10 +59,8 @@ public class PieceL extends Piece {
    *          type of the piece to create
    * @param width
    *          width of the board played, including the sentinels
-   * @param height
-   *          height of the board
    */
-  public PieceL(PieceType type, int width, int height) {
+  public PieceL(PieceType type, int width) {
     final int[] a = { 0, 1, 2, 3, width + 3 };
     final int[] b = { 0, 1, width, 2 * width, 3 * width };
 
@@ -100,9 +98,6 @@ public class PieceL extends Piece {
     }
     if (type != PieceType.STANDARD) {
       vars = 4;
-    }
-    if (height < 4) {
-      vars /= 2;
     }
   }
 

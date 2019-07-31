@@ -30,9 +30,9 @@ public class PieceI extends Piece {
    */
   public static void main(String[] args) {
     System.out.println("Regular board");
-    new PieceI(10, 6).printVariations(10);
+    new PieceI(10).printVariations(10);
     System.out.println("Shallow board");
-    new PieceI(15, 3).printVariations(15);
+    new PieceI(15).printVariations(15);
   }
 
   /** Variations of this piece */
@@ -47,18 +47,13 @@ public class PieceI extends Piece {
    *
    * @param width
    *          width of the board played, including sentinels
-   * @param height
-   *          height of the board played
    */
-  public PieceI(int width, int height) {
+  public PieceI(int width) {
     final int[] h = { 0, 1, 2, 3, 4 };
     final int[] v = { 0, width, 2 * width, 3 * width, 4 * width };
 
     first = h;
     second = v;
-    if (height < 5) {
-      vars /= 2;
-    }
   }
 
   /*

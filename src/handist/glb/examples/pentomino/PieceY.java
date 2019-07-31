@@ -31,18 +31,18 @@ public class PieceY extends Piece {
   public static void main(String[] args) {
     System.out.println("Large board");
     System.out.println("Standard");
-    new PieceY(PieceType.STANDARD, 10, 6).printVariations(10);
+    new PieceY(PieceType.STANDARD, 10).printVariations(10);
     System.out.println("Upside");
-    new PieceY(PieceType.UPSIDE, 15, 6).printVariations(15);
+    new PieceY(PieceType.UPSIDE, 15).printVariations(15);
     System.out.println("Flipside");
-    new PieceY(PieceType.FLIPSIDE, 15, 6).printVariations(15);
+    new PieceY(PieceType.FLIPSIDE, 15).printVariations(15);
     System.out.println("Shallow board");
     System.out.println("Standard");
-    new PieceY(PieceType.STANDARD, 20, 3).printVariations(20);
+    new PieceY(PieceType.STANDARD, 20).printVariations(20);
     System.out.println("Upside");
-    new PieceY(PieceType.UPSIDE, 30, 3).printVariations(30);
+    new PieceY(PieceType.UPSIDE, 30).printVariations(30);
     System.out.println("Flipside");
-    new PieceY(PieceType.FLIPSIDE, 30, 3).printVariations(30);
+    new PieceY(PieceType.FLIPSIDE, 30).printVariations(30);
   }
 
   /** Variations of this piece */
@@ -59,11 +59,9 @@ public class PieceY extends Piece {
    *          type of the piece to create
    * @param width
    *          width of the board played
-   * @param height
-   *          height of the board played
    *
    */
-  public PieceY(PieceType type, int width, int height) {
+  public PieceY(PieceType type, int width) {
     final int[] a = { 0, 1, 2, 3, width + 1 };
     final int[] b = { 0, width, 2 * width, 2 * width + 1, 3 * width };
 
@@ -101,9 +99,6 @@ public class PieceY extends Piece {
     }
     if (type != PieceType.STANDARD) {
       vars = 4;
-    }
-    if (height < 4) {
-      vars /= 2;
     }
   }
 

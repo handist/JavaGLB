@@ -259,7 +259,7 @@ public class GLBcomputer extends PlaceLocalObject {
    * Instance in which the result of the computation performed at this place is
    * going to be stored. It is initialized with the given neutral element before
    * the computation starts in method
-   * {@link #reset(SerializableSupplier, SerializableSupplier)}.
+   * {@link #reset(SerializableSupplier, SerializableSupplier, SerializableSupplier)}.
    */
   @SuppressWarnings("rawtypes")
   Fold result;
@@ -308,7 +308,7 @@ public class GLBcomputer extends PlaceLocalObject {
    * <em>Before the computation</em>, as many empty {@link WorkerBag}s as
    * concurrent workers ({@link Configuration#x}) are placed in this collection
    * as part of method
-   * {@link #reset(SerializableSupplier, SerializableSupplier)}.
+   * {@link #reset(SerializableSupplier, SerializableSupplier, SerializableSupplier)}.
    * <p>
    * <em>During the computation</em>, this collection contains the {@link Bag}s
    * of the workers that are not active. Prior to launching a new asynchronous
@@ -479,19 +479,45 @@ public class GLBcomputer extends PlaceLocalObject {
    *          function that provides new empty computation bag instances
    * @return aggregated result of the computation
    */
-  @SuppressWarnings("unchecked")
   public <R extends Fold<R> & Serializable, B extends Bag<B, R> & Serializable> R compute(
       B bag, SerializableSupplier<R> initResultSupplier,
       SerializableSupplier<B> emptyBagSupplier) {
+    return compute(bag, initResultSupplier, emptyBagSupplier, emptyBagSupplier);
+  }
+
+  /**
+   * Computes the given bag and returns the result of the distributed
+   * computation.
+   *
+   * @param <R>
+   *          type parameter for the result producedd by the computation
+   * @param <B>
+   *          type parameter for the computation to perform
+   * @param work
+   *          initial work to be processed
+   * @param resultInitializer
+   *          initializer for the result instance
+   * @param queueInitializer
+   *          initializer for the queue used for load balancing purposes
+   * @param workerInitializer
+   *          initializer for the workers bag
+   * @return instance of type R containing the result of the distributed
+   *         computation
+   */
+  @SuppressWarnings("unchecked")
+  public <R extends Fold<R> & Serializable, B extends Bag<B, R> & Serializable> R compute(
+      B work, SerializableSupplier<R> resultInitializer,
+      SerializableSupplier<B> queueInitializer,
+      SerializableSupplier<B> workerInitializer) {
     // We reset every place
     final long initStart = System.nanoTime();
-    resetAll(initResultSupplier, emptyBagSupplier);
+    resetAll(resultInitializer, queueInitializer, workerInitializer);
 
     // We launch the computation
     final long start = System.nanoTime();
     workerCount = 1;
     state = 0;
-    finish(() -> run(bag));
+    finish(() -> run(work));
     final long computationFinish = System.nanoTime();
     // We gather the result back into place 0
     collectAllResult();
@@ -653,9 +679,12 @@ public class GLBcomputer extends PlaceLocalObject {
       /*
        * 2. Answer lifelines
        */
-      while (!lifelineThieves.isEmpty() && !interQueueEmpty) {
+      while (!lifelineThieves.isEmpty()) {
         Bag loot;
         synchronized (intraPlaceQueue) {
+          if (interQueueEmpty) {
+            break;
+          }
           loot = interPlaceQueue.split(true);
           logger.interQueueSplit.incrementAndGet();
           interQueueEmpty = interPlaceQueue.isEmpty();
@@ -687,30 +716,27 @@ public class GLBcomputer extends PlaceLocalObject {
    */
   @SuppressWarnings({ "rawtypes", "unchecked" })
   Bag loot() {
-    Bag loot;
+    Bag loot = null;
     // Quick check on the other queue
-    if (intraQueueEmpty) {
+    if (!interQueueEmpty) {
       synchronized (intraPlaceQueue) {
-        final Bag b = interPlaceQueue.split(false);
-        logger.interQueueSplit.incrementAndGet();
-        intraPlaceQueue.merge(b);
-        logger.intraQueueFed.incrementAndGet();
-        intraQueueEmpty = intraPlaceQueue.isEmpty(); // Update flag
-        loot = interPlaceQueue.split(true);
-        logger.interQueueSplit.incrementAndGet();
-        interQueueEmpty = interPlaceQueue.isEmpty(); // Update flag
+        if (!interQueueEmpty) {
+          if (intraQueueEmpty && interPlaceQueue.isSplittable()) {
+            intraPlaceQueue.merge(interPlaceQueue.split(false));
+            logger.interQueueSplit.incrementAndGet();
+            logger.intraQueueFed.incrementAndGet();
+            intraQueueEmpty = intraPlaceQueue.isEmpty(); // Update flag
+          }
+          loot = interPlaceQueue.split(true);
+          logger.interQueueSplit.incrementAndGet();
+          interQueueEmpty = interPlaceQueue.isEmpty(); // Update flag
+        }
       }
-    } else {
-      // The inter queue has work, no worries
-      synchronized (intraPlaceQueue) {
-        loot = interPlaceQueue.split(true);
-        logger.interQueueSplit.incrementAndGet();
-        interQueueEmpty = interPlaceQueue.isEmpty(); // Update flag
+      if (interQueueEmpty) {
+        requestInterQueueFeed();
       }
     }
-    if (interQueueEmpty) {
-      requestInterQueueFeed();
-    }
+
     return loot;
   }
 
@@ -839,12 +865,15 @@ public class GLBcomputer extends PlaceLocalObject {
    *
    * @param resultInitSupplier
    *          supplier of empty result instance
-   * @param emptyBagSupplier
-   *          supplier of empty computation bags
+   * @param queueInitializer
+   *          supplier of empty queues for load balancing purposes
+   * @param workerInitializer
+   *          supplier of empty bag for workers
    */
   <R extends Fold<R> & Serializable, B extends Bag<B, R> & Serializable> void reset(
       SerializableSupplier<R> resultInitSupplier,
-      SerializableSupplier<B> emptyBagSupplier) {
+      SerializableSupplier<B> queueInitializer,
+      SerializableSupplier<B> workerInitializer) {
 
     // Resetting the configutation to the initial values
     CONFIGURATION.reset();
@@ -857,8 +886,8 @@ public class GLBcomputer extends PlaceLocalObject {
     result = resultInitSupplier.get();
 
     // Resetting the queues
-    interPlaceQueue = emptyBagSupplier.get();
-    intraPlaceQueue = emptyBagSupplier.get();
+    interPlaceQueue = queueInitializer.get();
+    intraPlaceQueue = queueInitializer.get();
 
     // Resetting flags
     lifelineAnswerLock.reset();
@@ -877,7 +906,7 @@ public class GLBcomputer extends PlaceLocalObject {
                                                // empty bags as there are
                                                // possible concurrent
                                                // workers
-      workerBags.add(new WorkerBag(i, emptyBagSupplier.get()));
+      workerBags.add(new WorkerBag(i, workerInitializer.get()));
       feedInterQueueRequested.set(i, 1);
     }
 
@@ -899,8 +928,9 @@ public class GLBcomputer extends PlaceLocalObject {
   /**
    * Resets all instances of GLBcomputer in the system.
    * <p>
-   * Calls method {@link #reset(SerializableSupplier, SerializableSupplier)} on
-   * all places in the system. The tasks are performed asynchronously. The
+   * Calls method
+   * {@link #reset(SerializableSupplier, SerializableSupplier, SerializableSupplier)}
+   * on all places in the system. The tasks are performed asynchronously. The
    * method returns when all the instances on each place have completed their
    * reset.
    *
@@ -910,16 +940,20 @@ public class GLBcomputer extends PlaceLocalObject {
    *          type parameter for computation bag
    *
    * @param resultInitSupplier
-   *          supplier of empty result instances
-   * @param emptyBagSupplier
-   *          supplier of empty computation bags
+   *          supplier of empty result instance
+   * @param queueInitializer
+   *          supplier of empty queues for load balancing purposes
+   * @param workerInitializer
+   *          supplier of empty bag for workers
    */
   <R extends Fold<R> & Serializable, B extends Bag<B, R> & Serializable> void resetAll(
       SerializableSupplier<R> resultInitSupplier,
-      SerializableSupplier<B> emptyBagSupplier) {
+      SerializableSupplier<B> queueInitializer,
+      SerializableSupplier<B> workerInitializer) {
     finish(() -> {
       for (final Place p : places()) {
-        asyncAt(p, () -> reset(resultInitSupplier, emptyBagSupplier));
+        asyncAt(p, () -> reset(resultInitSupplier, queueInitializer,
+            workerInitializer));
       }
     });
 
@@ -988,29 +1022,29 @@ public class GLBcomputer extends PlaceLocalObject {
    *          if this is a random steal
    */
   @SuppressWarnings("rawtypes")
-  void steal(int thief) {
+  synchronized void steal(int thief) {
     workerLock.unblock();
 
     final int h = HOME.id;
+    final Bag loot = loot();
 
     if (thief >= 0) {
+      // A lifeline is trying to steal some work
       logger.lifelineStealsReceived.incrementAndGet();
 
-      if (interQueueEmpty) {
+      if (loot == null) {
         // Steal does not immediately succeeds
         // The lifeline is registered to answer it later.
         lifelineThieves.offer(thief);
       } else {
         logger.lifelineStealsSuffered.incrementAndGet();
-
-        final Bag loot = loot();
         asyncAt(place(thief), () -> deal(h, loot));
       }
     } else {
+      // A random thief is trying to steal some work
       logger.stealsReceived.incrementAndGet();
-      if (!interQueueEmpty) {
+      if (loot != null) {
         logger.stealsSuffered.incrementAndGet();
-        final Bag loot = loot();
         asyncAt(place(-thief - 1), () -> deal(-1, loot));
       }
     }
@@ -1112,6 +1146,7 @@ public class GLBcomputer extends PlaceLocalObject {
                                        // block
               intraPlaceQueue.merge(bag.split(false));
               logger.intraQueueFed.incrementAndGet();
+              intraQueueEmpty = intraPlaceQueue.isEmpty();
             }
           }
         }
@@ -1124,8 +1159,9 @@ public class GLBcomputer extends PlaceLocalObject {
             synchronized (intraPlaceQueue) {
               interPlaceQueue.merge(bag.split(false));
               logger.interQueueFed.incrementAndGet();
+              interQueueEmpty = interPlaceQueue.isEmpty();
             }
-            interQueueEmpty = false;
+
             feedInterQueueRequested.set(workerBag.workerId, 0);
           }
         }
@@ -1142,7 +1178,7 @@ public class GLBcomputer extends PlaceLocalObject {
         /*
          * 5. Yield if need be
          */
-        if (logger.workerCount == CONFIGURATION.x
+        if (workerCount == CONFIGURATION.x
             && (POOL.hasQueuedSubmissions() || lifelineToAnswer)) {
           final Lock l = workerAvailableLocks.poll();
           if (l != null) {
@@ -1169,6 +1205,8 @@ public class GLBcomputer extends PlaceLocalObject {
       } while (!bag.isEmpty());// 7. Repeat previous steps until the bag becomes
                                // empty.
 
+      logger.workerStealing(); // The worker is now stealing
+
       /*
        * 8. Intra-place load balancing
        */
@@ -1180,36 +1218,43 @@ public class GLBcomputer extends PlaceLocalObject {
 
         // Attempt to steal some work from the intra-place bag
         if (!intraQueueEmpty) {
+          Bag loot = null;
           synchronized (intraPlaceQueue) {
-            bag.merge(intraPlaceQueue.split(true)); // If only a fragment can't
-                                                    // be
-                                                    // taken, we take the whole
-                                                    // content of the
-                                                    // intraPlaceQueue
-            intraQueueEmpty = intraPlaceQueue.isEmpty(); // Flag update
-
-            logger.intraQueueSplit.incrementAndGet();
+            if (!intraQueueEmpty) {
+              loot = intraPlaceQueue.split(true); // If only a fragment can't
+                                                  // be taken, we take the whole
+                                                  // content of the
+                                                  // intraPlaceQueue
+              intraQueueEmpty = intraPlaceQueue.isEmpty(); // Flag update
+              logger.intraQueueSplit.incrementAndGet();
+            }
+          }
+          if (loot != null) {
+            bag.merge(loot);
           }
 
         } else if (!interQueueEmpty) { // Couldn't steal from intraQueue, try on
                                        // interQueue
-          Bag loot;
+          Bag loot = null;
           synchronized (intraPlaceQueue) {
-            loot = interPlaceQueue.split(true); // Take from interplace
-            logger.interQueueSplit.incrementAndGet();
-            interQueueEmpty = interPlaceQueue.isEmpty(); // Update the flag
-            if (loot.isSplittable()) {
-              // Put some work back into the intra queue
-              intraPlaceQueue.merge(loot.split(false));
-              logger.intraQueueFed.incrementAndGet();
-              intraQueueEmpty = intraPlaceQueue.isEmpty(); // Update the flag
+            if (!interQueueEmpty) {
+              loot = interPlaceQueue.split(true); // Take from interplace
+              logger.interQueueSplit.incrementAndGet();
+              interQueueEmpty = interPlaceQueue.isEmpty(); // Update the flag
+              /*
+               * if (loot.isSplittable()) { // Put some work back into the intra
+               * queue intraPlaceQueue.merge(loot.split(false));
+               * logger.intraQueueFed.incrementAndGet(); intraQueueEmpty =
+               * intraPlaceQueue.isEmpty(); // Update the flag }
+               */
             }
           }
           if (interQueueEmpty) {
             requestInterQueueFeed();
           }
-
-          bag.merge(loot);
+          if (loot != null) {
+            bag.merge(loot);
+          }
 
         } else {// Both queues were empty. The worker stops.
           workerBags.add(workerBag);
@@ -1227,6 +1272,7 @@ public class GLBcomputer extends PlaceLocalObject {
 
       // Stealing from the queues in the place was successful. The worker goes
       // back to processing its fraction of the work.
+      logger.workerResumed();
 
     } // Enclosing infinite for loop. Exit is done with the "return;" 7 lines
       // above.

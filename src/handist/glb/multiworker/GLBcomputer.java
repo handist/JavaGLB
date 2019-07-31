@@ -718,27 +718,23 @@ public class GLBcomputer extends PlaceLocalObject {
   Bag loot() {
     Bag loot = null;
     // Quick check on the other queue
-    if (intraQueueEmpty) {
+    if (!interQueueEmpty) {
       synchronized (intraPlaceQueue) {
-        if (interPlaceQueue.isSplittable()) {
-          final Bag b = interPlaceQueue.split(false);
+        if (!interQueueEmpty) {
+          if (intraQueueEmpty && interPlaceQueue.isSplittable()) {
+            intraPlaceQueue.merge(interPlaceQueue.split(false));
+            logger.interQueueSplit.incrementAndGet();
+            logger.intraQueueFed.incrementAndGet();
+            intraQueueEmpty = intraPlaceQueue.isEmpty(); // Update flag
+          }
+          loot = interPlaceQueue.split(true);
           logger.interQueueSplit.incrementAndGet();
-          intraPlaceQueue.merge(b);
-          logger.intraQueueFed.incrementAndGet();
-          intraQueueEmpty = intraPlaceQueue.isEmpty(); // Update flag
+          interQueueEmpty = interPlaceQueue.isEmpty(); // Update flag
         }
       }
-    }
-    synchronized (intraPlaceQueue) {
-      if (!interQueueEmpty) {
+      if (interQueueEmpty) {
         requestInterQueueFeed();
-        loot = interPlaceQueue.split(true);
-        logger.interQueueSplit.incrementAndGet();
-        interQueueEmpty = interPlaceQueue.isEmpty(); // Update flag
       }
-    }
-    if (interQueueEmpty) {
-      requestInterQueueFeed();
     }
 
     return loot;

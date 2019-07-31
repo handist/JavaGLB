@@ -36,12 +36,19 @@ public class PieceV extends Piece {
     V.removeVerticalSymmetry();
     V.printVariations(10);
     V.reset();
-
+    V.printVariations(10);
   }
 
   /** Variations of this piece */
   @SuppressWarnings("javadoc")
-  int[] UL, DL, UR, DR, first, second, third, fourth;
+  final int[] UL;
+  final int[] DL;
+  final int[] UR;
+  final int[] DR;
+  int[] first;
+  int[] second;
+  int[] third;
+  int[] fourth;
 
   /** Number of variations of the piece */
   int vars = 4;
@@ -112,7 +119,7 @@ public class PieceV extends Piece {
   }
 
   /**
-   * Removes vertical variations from the V piece in case symmetries
+   * Removes symmetries of the piece along the vertical axis
    */
   public void removeVerticalSymmetry() {
     first = UL;
@@ -121,7 +128,7 @@ public class PieceV extends Piece {
   }
 
   /**
-   *
+   * Removes symmetries of the piece along the horizontal axis
    */
   public void removeHorizontalSymmetry() {
     vars = 2;
@@ -139,6 +146,7 @@ public class PieceV extends Piece {
     second = DL;
     third = UR;
     fourth = DR;
+
     vars = 4;
   }
 }

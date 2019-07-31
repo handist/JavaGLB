@@ -822,7 +822,7 @@ public class Pentomino implements Bag<Pentomino, Answer>, Serializable {
     low = p.low;
     high = p.high;
     additionalSymmetryRestriction = p.additionalSymmetryRestriction;
-    // Reconstitutes the board in the state p was
+    // Reconstitutes the board in the state p was if this is a worker's bag
     if (board != null) {
       board.clear();
       for (int i = 0; i < depth; i++) {

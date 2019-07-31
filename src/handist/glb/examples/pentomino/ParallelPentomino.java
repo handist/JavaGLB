@@ -42,7 +42,7 @@ public class ParallelPentomino {
       removeSymmetries = Boolean.parseBoolean(args[2]);
     } catch (final Exception e) {
       System.err.println("Error parsing arguments");
-      System.err.println("Arguments are <WIDTH> <HEIGHT>");
+      System.err.println("Arguments are <WIDTH> <HEIGHT> <Symmetry Removal>");
       return;
     }
 

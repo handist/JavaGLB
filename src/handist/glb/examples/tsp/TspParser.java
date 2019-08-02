@@ -42,21 +42,24 @@ public class TspParser {
     final int nbNodes = sc.nextInt();
 
     final int[][] matrix = new int[nbNodes][nbNodes];
-    final int[] allCosts = new int[nbNodes * nbNodes];
     sc.nextLine();
     sc.nextLine();
     sc.nextLine();
     sc.nextLine();
 
+    int minimum = Integer.MAX_VALUE;
     for (int i = 0; i < nbNodes; i++) {
       for (int j = 0; j < nbNodes; j++) {
-        if (i == j) {
+        if (i == j) {// diagonal value is ignored and set to max
           matrix[i][j] = Integer.MAX_VALUE;
-          sc.nextInt(); // Value is ignored
+          sc.nextInt();
         } else {
-          matrix[i][j] = sc.nextInt();
+          final int cost = sc.nextInt();
+          matrix[i][j] = cost;
+          if (cost < minimum) {
+            minimum = cost;
+          }
         }
-        allCosts[i * nbNodes + j] = matrix[i][j];
       }
     }
     sc.close();
@@ -65,8 +68,8 @@ public class TspParser {
      * Extracting a bound function giving the minimum cost left to complete a
      * path
      */
-    Arrays.sort(allCosts);
-    final int[] bound = Arrays.copyOfRange(allCosts, 0, nbNodes);
+    final int[] bound = new int[nbNodes];
+    Arrays.fill(bound, minimum);
     Arrays.parallelPrefix(bound, (a, b) -> a + b);
 
     return new TspProblem(path, name, matrix, bound);
@@ -86,6 +89,8 @@ public class TspParser {
    *          cities available in the file.
    * @return a {@link TspProblem} instance restricted to the number of cities
    *         given as parameter
+   * @throws IOException
+   *           if an exception occurs during file parsing
    */
   public static TspProblem parseFile(String path, int citySubset)
       throws IOException {
@@ -95,26 +100,24 @@ public class TspParser {
       return problem;
     }
 
-    final int[] costs = new int[citySubset * citySubset];
+    // final int[] costs = new int[citySubset * citySubset];
 
+    int minimumCost = Integer.MAX_VALUE;
     // Truncate the adjacency matrix
-    int i = 0;
     problem.adjacencyMatrix = Arrays.copyOf(problem.adjacencyMatrix,
         citySubset);
     for (int[] dist : problem.adjacencyMatrix) {
       dist = Arrays.copyOf(dist, citySubset);
       for (final int a : dist) {
-        costs[i] = a;
-        i++;
+        if (a < minimumCost) {
+          minimumCost = a;
+        }
       }
     }
 
     // Compute the bound again
-    Arrays.sort(costs);
-    final int[] bound = Arrays.copyOf(costs, citySubset);
-    Arrays.parallelPrefix(bound, (a, b) -> a + b);
 
-    problem.boundFunction = bound;
+    problem.boundFunction = Arrays.copyOf(problem.boundFunction, citySubset);
 
     return problem;
   }

@@ -48,7 +48,21 @@ public class TspProblem implements Serializable {
   @Override
   public String toString() {
     String s = tspName + " from " + filePath + " with " + adjacencyMatrix.length
-        + " cities" + "\r\n" + "Bound: ";
+        + " cities" + "\r\n";
+    s += "Matrix\r\n";
+    for (int i = 0; i < adjacencyMatrix.length; i++) {
+      final int[] row = adjacencyMatrix[i];
+      for (int j = 0; j < row.length; j++) {
+        if (i == j) {
+          s += "0 ";
+        } else {
+          s += row[j] + " ";
+        }
+      }
+      s += "\r\n";
+    }
+
+    s += "Bound: ";
     for (final int i : boundFunction) {
       s += " " + i;
     }

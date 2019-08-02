@@ -24,15 +24,45 @@ public class TspBag implements Bag<TspBag, Travel>, Serializable {
   private static final long serialVersionUID = -8573121302967870892L;
 
   /**
+   * Launches a sequential execution of the TSP
+   *
+   * @param args
+   *          path to the input problem file
+   */
+  public static void main(String[] args) {
+    final Travel result = new Travel();
+
+    TspProblem problem;
+    try {
+      if (args.length == 2) {
+        problem = TspParser.parseFile(args[0], Integer.parseInt(args[1]));
+      } else {
+        problem = TspParser.parseFile(args[0]);
+      }
+    } catch (final IOException e) {
+      e.printStackTrace();
+      return;
+    }
+    final TspBag bag = new TspBag(problem);
+
+    System.out.println(problem);
+
+    bag.init();
+    long computationTime = System.nanoTime();
+    bag.run(result);
+    computationTime = System.nanoTime() - computationTime;
+
+    System.out.println(problem);
+    System.out.println("Computation took " + computationTime / 1e9 + "s");
+    System.out.println("Final result is " + result);
+    System.out.println("Number of nodes explored: " + bag.nodeCounter);
+  }
+
+  /**
    * Contains the information of how much going from city A (first index) to
    * city B (second index) costs.
    */
   public transient final int[][] ADJ_MATRIX;
-
-  /**
-   * Number of cities in the considered problem
-   */
-  public transient final int TOTAL_NB_CITIES;
 
   /**
    * Bound indicating the minimum of completing the path when one has `N+1` hops
@@ -41,32 +71,24 @@ public class TspBag implements Bag<TspBag, Travel>, Serializable {
   public transient final int[] BOUND_FUNCTION;
 
   /**
-   * Size of the path currently being explored. The information concerning the
-   * last nodes being explored are therefore located at "index-1" in arrays
-   * {@link #cost}, {@link #path} and {@link #nextNodes}.
-   */
-  int index;
-
-  /**
    * Cost array, keeps track of the distance needed to reach the node located at
    * the same index in array {@link #path}.
    */
   int cost[];
 
   /**
-   * Path array, keeps track of which node we are currently located at. Its
-   * value at index 0 is always 0 as we arbitrarly decided that all round trips
-   * were started (and finished) at 0.
+   * Keeps track of the upper bound of the range of nodes reaming to explore at
+   * each 'index' in array {@link #nextNodes}. Nodes remaining to explore are at
+   * indexes strictly lower than what is contained by array {@link #high}.
    */
-  byte path[];
+  int high[];
 
   /**
-   * At each index, the map keys are the nodes remaining to go to in order to
-   * complete a path. If a node and its subtree is or has been explored, its id
-   * is mapped to false. If it (and its subtree) remains to be explored, it is
-   * mapped to true.
+   * Size of the path currently being explored. The information concerning the
+   * last nodes being explored are therefore located at "index-1" in arrays
+   * {@link #cost}, {@link #path} and {@link #nextNodes}.
    */
-  NextNode nextNodes[][];
+  int index;
 
   /**
    *
@@ -77,23 +99,89 @@ public class TspBag implements Bag<TspBag, Travel>, Serializable {
   int low[];
 
   /**
-   * Keeps track of the upper bound of the range of nodes reaming to explore at
-   * each 'index' in array {@link #nextNodes}. Nodes remaining to explore are at
-   * indexes strictly lower than what is contained by array {@link #high}.
+   * At each index, the map keys are the nodes remaining to go to in order to
+   * complete a path. If a node and its subtree is or has been explored, its id
+   * is mapped to false. If it (and its subtree) remains to be explored, it is
+   * mapped to true.
    */
-  int high[];
+  NextNode nextNodes[][];
 
   /**
    * Counts the number of nodes explored by this bag. This counter is
    * incremented in method {@link #exploreOne(Travel)} every time it is called.
    */
-  transient VeryLong nodeCounter;
+  transient long nodeCounter;
+
+  /**
+   * Path array, keeps track of which node we are currently located at. Its
+   * value at index 0 is always 0 as we arbitrarly decided that all round trips
+   * were started (and finished) at 0.
+   */
+  byte path[];
+
+  /**
+   * Number of cities in the considered problem
+   */
+  public transient final int TOTAL_NB_CITIES;
+
+  /**
+   * Constructor for TSPBag instance that are going to be used to transport
+   * splits from one place to an other. The arrays will be initialized with the
+   * minimum size needed and the transient terms will not be initialized
+   *
+   * @param arrayLength
+   *          size of the array that is needed to accomodate for the split
+   * @param nbCities
+   *          of cities in the current TSP problem
+   */
+  protected TspBag(int arrayLength, int nbCities) {
+    // Initialization to avoid warning on non initialized final members
+    ADJ_MATRIX = null;
+    BOUND_FUNCTION = null;
+    TOTAL_NB_CITIES = nbCities;
+
+    index = 0;
+    cost = new int[arrayLength];
+    path = new byte[arrayLength];
+    nextNodes = new NextNode[arrayLength][0];
+    for (int i = 0; i < arrayLength; i++) {
+      nextNodes[i] = new NextNode[nbCities - i - 1];
+    }
+    low = new int[arrayLength];
+    high = new int[arrayLength];
+  }
+
+  /**
+   * Initializes an empty bag with the given problem.
+   *
+   * @param problem
+   *          the problem considered
+   */
+  public TspBag(TspProblem problem) {
+    nodeCounter = 0;
+    ADJ_MATRIX = problem.adjacencyMatrix;
+    TOTAL_NB_CITIES = ADJ_MATRIX.length;
+    BOUND_FUNCTION = problem.boundFunction;
+
+    index = 0;
+    cost = new int[TOTAL_NB_CITIES];
+    path = new byte[TOTAL_NB_CITIES];
+    nextNodes = new NextNode[TOTAL_NB_CITIES][0];
+    for (int i = 0; i < TOTAL_NB_CITIES; i++) {
+      nextNodes[i] = new NextNode[TOTAL_NB_CITIES - i - 1];
+      for (int j = 0; j < nextNodes[i].length; j++) {
+        nextNodes[i][j] = new NextNode();
+      }
+    }
+    low = new int[TOTAL_NB_CITIES];
+    high = new int[TOTAL_NB_CITIES];
+  }
 
   /**
    * Steps back in the exploration until an unexplored leaf is found or the bag
    * is found to be empty.
    */
-  void stepBack() {
+  void backtrack() {
     while (0 < index && low[index - 1] == high[index - 1]) {
       index--;
     }
@@ -107,7 +195,7 @@ public class TspBag implements Bag<TspBag, Travel>, Serializable {
    *          found so far is stored
    */
   void exploreOne(Travel shared) {
-    nodeCounter.increment();
+    nodeCounter++;
     final NextNode candidates[] = nextNodes[index - 1]; // for elegance
                                                         // henceforth
 
@@ -116,17 +204,17 @@ public class TspBag implements Bag<TspBag, Travel>, Serializable {
 
       // We add the cost of the return to city 0
       final int totalCost = cost[index - 1] + ADJ_MATRIX[path[index - 1]][0];
-      if (totalCost < shared.bestSolutionCost) {
+      if (totalCost <= shared.bestSolutionCost) {
         shared.updateBestSolution(totalCost,
             Arrays.copyOfRange(path, index - TOTAL_NB_CITIES, index));
       }
-      stepBack();
+      backtrack();
       return;
     }
 
     if (low[index - 1] == high[index - 1]) {
-      // There were unexplored candidates left, stepback
-      stepBack();
+      // There were no unexplored candidates left, stepback
+      backtrack();
       return;
     }
 
@@ -164,7 +252,7 @@ public class TspBag implements Bag<TspBag, Travel>, Serializable {
     } else {
       // No chance of finding a better solution, we backtrack
       low[index - 1] = high[index - 1];
-      stepBack();
+      backtrack();
     }
   }
 
@@ -318,8 +406,8 @@ public class TspBag implements Bag<TspBag, Travel>, Serializable {
       low[i] = splitIndex;
     }
     toReturn.index = depthOfCut;
-    toReturn.stepBack();
-    stepBack();
+    toReturn.backtrack();
+    backtrack();
 
     return toReturn;
   }
@@ -331,93 +419,7 @@ public class TspBag implements Bag<TspBag, Travel>, Serializable {
    */
   @Override
   public void submit(Travel r) {
-    r.nodesExplored.add(nodeCounter);
-  }
-
-  /**
-   * Initializes an empty bag with the given problem.
-   *
-   * @param problem
-   *          the problem considered
-   */
-  public TspBag(TspProblem problem) {
-    nodeCounter = new VeryLong();
-    ADJ_MATRIX = problem.adjacencyMatrix;
-    TOTAL_NB_CITIES = ADJ_MATRIX.length;
-    BOUND_FUNCTION = problem.boundFunction;
-
-    index = 0;
-    cost = new int[TOTAL_NB_CITIES];
-    path = new byte[TOTAL_NB_CITIES];
-    nextNodes = new NextNode[TOTAL_NB_CITIES][0];
-    for (int i = 0; i < TOTAL_NB_CITIES; i++) {
-      nextNodes[i] = new NextNode[TOTAL_NB_CITIES - i - 1];
-      for (int j = 0; j < nextNodes[i].length; j++) {
-        nextNodes[i][j] = new NextNode();
-      }
-    }
-    low = new int[TOTAL_NB_CITIES];
-    high = new int[TOTAL_NB_CITIES];
-  }
-
-  /**
-   * Constructor for TSPBag instance that are going to be used to transport
-   * splits from one place to an other. The arrays will be initialized with the
-   * minimum size needed and the transient terms will not be initialized
-   *
-   * @param nbNodes
-   *          number of nodes in the path which is going to be split from
-   * @param nbCities
-   *          of cities in the current TSP problem
-   */
-  protected TspBag(int pathLength, int nbCities) {
-    // Initialization to avoid warning on non initialized final members
-    ADJ_MATRIX = null;
-    BOUND_FUNCTION = null;
-    TOTAL_NB_CITIES = nbCities;
-
-    index = 0;
-    cost = new int[pathLength];
-    path = new byte[pathLength];
-    nextNodes = new NextNode[pathLength][0];
-    for (int i = 0; i < pathLength; i++) {
-      nextNodes[i] = new NextNode[nbCities - i - 1];
-    }
-    low = new int[pathLength];
-    high = new int[pathLength];
-  }
-
-  /**
-   * Launches a sequential execution of the TSP
-   *
-   * @param args
-   *          path to the input problem file
-   */
-  public static void main(String[] args) {
-    final Travel result = new Travel(0);
-
-    TspProblem problem;
-    try {
-      if (args.length == 2) {
-        problem = TspParser.parseFile(args[0], Integer.parseInt(args[1]));
-      } else {
-        problem = TspParser.parseFile(args[0]);
-      }
-    } catch (final IOException e) {
-      e.printStackTrace();
-      return;
-    }
-    final TspBag bag = new TspBag(problem);
-
-    bag.init();
-    long computationTime = System.nanoTime();
-    bag.run(result);
-    computationTime = System.nanoTime() - computationTime;
-
-    System.out.println(problem);
-    System.out.println("Computation took " + computationTime / 1e9 + "s");
-    System.out.println("Final result is " + result);
-    System.out.println("Number of nodes explored: " + bag.nodeCounter);
+    r.nodesExplored += nodeCounter;
   }
 
 }

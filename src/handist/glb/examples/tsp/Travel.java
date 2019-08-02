@@ -28,6 +28,14 @@ public class Travel implements Fold<Travel>, Serializable {
   private static final long serialVersionUID = 252756140949485666L;
 
   /**
+   * Collection of ordered City identifiers (array) indicate the best paths
+   * found so far. Before any computation begins, this collection will be empty.
+   * If a remote place found a better solution and this instance is updated with
+   * a better bound, this array will be cleared again.
+   */
+  byte[][] bestPaths;
+
+  /**
    * Cost of the best solution found so far. This value is meant to be read by
    * many workers concurrently but its update when a better value has been found
    * needs to be done synchronously through method
@@ -37,27 +45,50 @@ public class Travel implements Fold<Travel>, Serializable {
    */
   public volatile int bestSolutionCost;
 
-  /**
-   * Counter in which workers will add up the number of nodes they each explored
-   */
-  public VeryLong nodesExplored;
-
   /** Counts the number of nodes in the exploration tree */
-  transient Map<Integer, VeryLong> exploredCount;
+  transient Map<Integer, Long> exploredCount;
 
   /** int that keeps track of the place on which this instance was initiated */
   int home = apgas.Constructs.here().id;
 
-  /**
-   * Collection of ordered City identifiers (array) indicate the best paths
-   * found so far. Before any computation begins, this collection will be empty.
-   * If a remote place found a better solution and this instance is updated with
-   * a better bound, this array will be cleared again.
-   */
-  byte[][] bestPaths;
-
   /** Counts the number of solutions with the same length */
   int nbSolution;
+
+  /**
+   * Counter in which workers will add up the number of nodes they each explored
+   */
+  public long nodesExplored;
+
+  /**
+   * Constructor
+   * <p>
+   * Initializes member {@link #bestSolutionCost} to {@link Integer#MAX_VALUE}
+   * and member {@link #bestPath} to <code>null</code>.
+   */
+  public Travel() {
+    bestSolutionCost = Integer.MAX_VALUE;
+    nodesExplored = 0;
+    exploredCount = new HashMap<>();
+    bestPaths = new byte[10][0];
+  }
+
+  /**
+   * @param paths
+   */
+  private void addAllSolutions(Travel t) {
+    for (int i = 0; i < t.nbSolution; i++) {
+      final byte[] path = t.bestPaths[i];
+      addSolution(path);
+    }
+  }
+
+  private void addSolution(byte[] path) {
+    if (nbSolution == bestPaths.length) {
+      bestPaths = Arrays.copyOf(bestPaths, bestPaths.length * 2);
+    }
+    bestPaths[nbSolution] = path;
+    nbSolution++;
+  }
 
   /*
    * (non-Javadoc)
@@ -77,45 +108,20 @@ public class Travel implements Fold<Travel>, Serializable {
     exploredCount.put(r.home, r.nodesExplored);
   }
 
-  private void addSolution(byte[] path) {
-    if (nbSolution == bestPaths.length) {
-      bestPaths = Arrays.copyOf(bestPaths, bestPaths.length * 2);
-    }
-    bestPaths[nbSolution] = path;
-    nbSolution++;
-  }
-
   /**
-   * @param paths
+   * Prints on the standard output the number of nodes explored by each
+   * individual place.
    */
-  private void addAllSolutions(Travel t) {
-    for (int i = 0; i < t.nbSolution; i++) {
-      final byte[] path = t.bestPaths[i];
-      addSolution(path);
+  public void printExploredNodes() {
+    long total = 0;
+    System.err.println("0;" + nodesExplored + ";");
+    total += nodesExplored;
+    for (final Entry<Integer, Long> vl : exploredCount.entrySet()) {
+      System.err.println(vl);
+      total += vl.getValue();
     }
-  }
 
-  /**
-   * Method that workers will call when they think that they found a better
-   * solution than the one currently held by this place. Due to possible
-   * concurrent accesses, this method is made synchronized.
-   *
-   * @param cost
-   *          Cost of the path found by a worker
-   * @param path
-   *          the path, array containing the citie's ids
-   */
-  public synchronized void updateBestSolution(int cost, byte[] path) {
-    if (cost < bestSolutionCost) {
-      System.out.println(
-          new Time(System.currentTimeMillis()) + " new optimum " + cost);
-      bestSolutionCost = cost;
-      nbSolution = 0;
-
-      if (path != null) {
-        addSolution(path);
-      }
-    }
+    System.err.println("Total;" + total);
   }
 
   /*
@@ -138,32 +144,23 @@ public class Travel implements Fold<Travel>, Serializable {
   }
 
   /**
-   * Prints on the standard output the number of nodes explored by each
-   * individual place.
+   * Method that workers will call when they think that they found a better
+   * solution than the one currently held by this place. Due to possible
+   * concurrent accesses, this method is made synchronized.
+   *
+   * @param cost
+   *          Cost of the path found by a worker
+   * @param path
+   *          the path, array containing the citie's ids
    */
-  public void printExploredNodes() {
-    final VeryLong total = new VeryLong();
-    System.err.println("0;" + nodesExplored + ";");
-    total.add(nodesExplored);
-    for (final Entry<Integer, VeryLong> vl : exploredCount.entrySet()) {
-      System.err.println(vl);
-      total.add(vl.getValue());
+  public synchronized void updateBestSolution(int cost, byte[] path) {
+    if (cost < bestSolutionCost) {
+      System.out.println(
+          new Time(System.currentTimeMillis()) + " new optimum " + cost);
+      bestSolutionCost = cost;
+      nbSolution = 0;
     }
-
-    System.err.println("Total;" + total);
-  }
-
-  /**
-   * Constructor
-   * <p>
-   * Initializes member {@link #bestSolutionCost} to {@link Integer#MAX_VALUE}
-   * and member {@link #bestPath} to <code>null</code>.
-   */
-  public Travel() {
-    bestSolutionCost = Integer.MAX_VALUE;
-    nodesExplored = new VeryLong();
-    exploredCount = new HashMap<>();
-    bestPaths = new byte[10][0];
+    addSolution(path);
   }
 
 }

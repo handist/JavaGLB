@@ -3,6 +3,8 @@
  */
 package handist.glb.examples.exactcover;
 
+import java.util.LinkedList;
+
 import handist.glb.examples.pentomino.Answer;
 import handist.glb.multiworker.GLBcomputer;
 import handist.glb.multiworker.GLBfactory;
@@ -52,11 +54,15 @@ public class ParallelNQueens {
     for (int i = 0; i < repetitions; i++) {
 
       final NQueens problem = new NQueens(size);
+      problem.init();
+      final NQueens initialBag = new NQueens();
+      initialBag.reserve = new LinkedList<>();
+      initialBag.reserve.add(problem);
+
       final int SIZE = size; // variable needs to be final for serialization of
                              // the lambda in the NQueens constructor
 
-      problem.init();
-      final Answer result = computer.compute(problem, () -> new Answer(),
+      final Answer result = computer.compute(initialBag, () -> new Answer(),
           () -> new NQueens(SIZE));
 
       final Logger log = computer.getLog();

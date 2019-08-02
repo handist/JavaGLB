@@ -164,7 +164,7 @@ public class NQueens implements Bag<NQueens, Answer>, Serializable {
   long nodeCount;
 
   /** Reserve of NQuens exploration fragments that have yet to be explore */
-  transient Deque<NQueens> reserve;
+  Deque<NQueens> reserve;
 
   /** Counts the number of solutions to the N-Queens problem */
   transient long solutionCount = 0;
@@ -187,7 +187,7 @@ public class NQueens implements Bag<NQueens, Answer>, Serializable {
    * the {@link #split(boolean)} method to create an instance which will be
    * transfered with the minimum number of information.
    */
-  private NQueens() {
+  NQueens() {
   }
 
   /**
@@ -260,12 +260,10 @@ public class NQueens implements Bag<NQueens, Answer>, Serializable {
    */
   @Override
   public boolean isSplittable() {
-    if (matrix == null) {
-      return false;
-    }
-    if (!reserve.isEmpty()) {
-      return true;
-    }
+    return reserve.size() > 1 || treeSplittable();
+  }
+
+  private boolean treeSplittable() {
     int leaves = 0;
     for (int i = 0; i <= depth; i++) {
       leaves += choiceLeft(i);
@@ -285,10 +283,10 @@ public class NQueens implements Bag<NQueens, Answer>, Serializable {
   @Override
   public void merge(NQueens b) {
     if (depth == -1) {
-      restore(b);
-    } else {
-      reserve.add(b);
+      restore(b.reserve.poll());
     }
+    reserve.addAll(b.reserve);
+
   }
 
   /**
@@ -349,14 +347,19 @@ public class NQueens implements Bag<NQueens, Answer>, Serializable {
    */
   @Override
   public NQueens split(boolean takeAll) {
-    NQueens loot = null;
-    if (reserve != null) {
-      loot = reserve.pollFirst();
-    }
+    final NQueens toReturn = new NQueens();
+    toReturn.reserve = new LinkedList<>();
 
-    if (loot == null) {
+    if (reserve.size() > 1
+        || (reserve.size() == 1 && (treeSplittable() || takeAll))) {
+      int toSteal = (reserve.size() + 1) / 2;
+      while (toSteal > 0) {
+        toReturn.reserve.add(reserve.poll());
+        toSteal--;
+      }
+    } else {
       // We need to split the current exploration
-      loot = new NQueens();
+      final NQueens loot = new NQueens();
       loot.N = N;
       loot.depth = -1;
       loot.low = new int[N];
@@ -364,7 +367,6 @@ public class NQueens implements Bag<NQueens, Answer>, Serializable {
       loot.stack = Arrays.copyOf(stack, N);
 
       for (int level = 0; level <= depth; level++) {
-
         final int options = choiceLeft(level);
 
         if (options > 1) {
@@ -378,8 +380,9 @@ public class NQueens implements Bag<NQueens, Answer>, Serializable {
           loot.stack[level] = c.index;
 
           loot.depth = level;
+          toReturn.reserve.add(loot);
           break;
-        } else if (options == 1 && takeAll) {
+        } else if (options == 1) {
           loot.low[level] = low[level];
           loot.high[level] = high[level];
 
@@ -398,12 +401,13 @@ public class NQueens implements Bag<NQueens, Answer>, Serializable {
               depth--;
             }
           }
+
+          toReturn.reserve.add(loot);
           break;
         }
       }
     }
-
-    return loot;
+    return toReturn;
   }
 
   /**

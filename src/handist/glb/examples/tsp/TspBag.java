@@ -222,7 +222,7 @@ public class TspBag implements Bag<TspBag, Travel>, Serializable {
 
     final int nextCost = cost[index - 1] + next.cost;
     if (nextCost
-        + BOUND_FUNCTION[TOTAL_NB_CITIES - index] < shared.bestSolutionCost) {
+        + BOUND_FUNCTION[TOTAL_NB_CITIES - index] <= shared.bestSolutionCost) {
       // We may find a better solution, we keep exploring with that node
 
       cost[index] = nextCost;

@@ -129,9 +129,13 @@ public class NQueens implements Bag<NQueens, Answer>, Serializable {
       final long init = compStart - initStart;
       final long comp = compEnd - compStart;
 
-      System.out
-          .println(i + "/" + repetitions + ";" + problem.solutionCount + ";"
-              + problem.nodeCount + ";" + init / 1e9 + ";" + comp / 1e9 + ";");
+      long treeSize = 0;
+      for (final long n : problem.nodeCount) {
+        treeSize += n;
+      }
+
+      System.out.println(i + "/" + repetitions + ";" + problem.solutionCount
+          + ";" + treeSize + ";" + init / 1e9 + ";" + comp / 1e9 + ";");
     }
   }
 
@@ -160,8 +164,13 @@ public class NQueens implements Bag<NQueens, Answer>, Serializable {
   int N;
   /**
    * Counts the number of nodes in the tree explored in the exact cover problem
+   * at each depth
    */
-  long nodeCount;
+  long[] nodeCount;
+  /**
+   * Counts the number of branches at each level in the exploration tree
+   */
+  long[] branchCount;
 
   /** Reserve of NQuens exploration fragments that have yet to be explore */
   Deque<NQueens> reserve;
@@ -207,7 +216,8 @@ public class NQueens implements Bag<NQueens, Answer>, Serializable {
     high = new int[N];
 
     solutionCount = 0;
-    nodeCount = 0;
+    nodeCount = new long[size];
+    branchCount = new long[size];
   }
 
   /**
@@ -415,7 +425,7 @@ public class NQueens implements Bag<NQueens, Answer>, Serializable {
    */
   private void step() {
     if (choiceLeft() > 0) {
-      nodeCount++;
+      nodeCount[depth]++;
       // We pick the next choice
       final QCell oldChoice = matrix.cells[stack[depth]];
 
@@ -435,6 +445,7 @@ public class NQueens implements Bag<NQueens, Answer>, Serializable {
       // Try to apply the choice on the matrix
       next.chooseRow();
       if (matrix.hasHope()) {
+        branchCount[depth]++;
         depth++; // It is still possible to find a solution, we continue the
                  // exploration
 
@@ -474,8 +485,11 @@ public class NQueens implements Bag<NQueens, Answer>, Serializable {
    */
   @Override
   public void submit(Answer r) {
-    r.nodes += nodeCount;
     r.solutions += solutionCount;
+    for (int i = 0; i < nodeCount.length; i++) {
+      r.nodes[i] += nodeCount[i];
+      r.branch[i] += branchCount[i];
+    }
   }
 
   /**

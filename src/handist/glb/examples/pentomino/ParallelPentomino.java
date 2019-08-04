@@ -88,12 +88,26 @@ public class ParallelPentomino {
     final Pentomino p = new Pentomino(type, width, height);
     p.init(type, removeSymmetries, specificPositions);
 
-    final Answer ans = computer.compute(p, () -> new Answer(),
+    final int treeDepth = p.NB_PIECE;
+
+    final Answer ans = computer.compute(p, () -> new Answer(treeDepth),
         () -> new Pentomino(type), () -> new Pentomino(type, width, height));
 
     System.out.println(
         "Solution to H:" + height + " W:" + width + "; " + ans.solutions + ";");
     System.out.println("Tree nodes; " + ans.nodes + ";");
     computer.getLog().print(System.out);
+
+    System.err.print("Nodes; ");
+    for (int j = 0; j < treeDepth; j++) {
+      System.err.print(ans.nodes[j] + ";");
+    }
+    System.err.println();
+    System.err.print("Branch; ");
+    for (int j = 0; j < treeDepth; j++) {
+      System.err.print(ans.branch[j] + ";");
+    }
+    System.err.println();
+
   }
 }

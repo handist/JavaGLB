@@ -62,16 +62,31 @@ public class ParallelNQueens {
       final int SIZE = size; // variable needs to be final for serialization of
                              // the lambda in the NQueens constructor
 
-      final Answer result = computer.compute(initialBag, () -> new Answer(),
+      final Answer result = computer.compute(initialBag, () -> new Answer(SIZE),
           () -> new NQueens(SIZE));
 
       final Logger log = computer.getLog();
 
-      System.out.println(i + "/" + repetitions + ";" + result.solutions + ";"
-          + result.nodes + ";" + log.initializationTime / 1e9 + ";"
-          + log.computationTime / 1e9 + ";" + log.resultGatheringTime / 1e9
-          + ";");
+      long treeSize = 0;
+      for (final long n : result.nodes) {
+        treeSize += n;
+      }
+
+      System.out.println(
+          i + "/" + repetitions + ";" + result.solutions + ";" + treeSize + ";"
+              + log.initializationTime / 1e9 + ";" + log.computationTime / 1e9
+              + ";" + log.resultGatheringTime / 1e9 + ";");
       System.err.println("Run " + i + " of " + repetitions);
+      System.err.print("Nodes; ");
+      for (int j = 0; j < SIZE; j++) {
+        System.err.print(result.nodes[j] + ";");
+      }
+      System.err.println();
+      System.err.print("Branch; ");
+      for (int j = 0; j < SIZE; j++) {
+        System.err.print(result.branch[j] + ";");
+      }
+      System.err.println();
       log.print(System.err);
     }
   }

@@ -77,10 +77,10 @@ public class Logger {
             + "Worker Yielding;");
 
     for (final PlaceLogger l : placeLogs) {
-      out.print(l.place + ";" + l.workerSpawned + ";" + l.intraQueueSplit + ";"
-          + l.intraQueueFed + ";" + l.interQueueSplit + ";" + l.interQueueFed
-          + ";" + l.stealsAttempted + ";" + l.stealsSuccess + ";"
-          + l.stealsReceived + ";" + l.stealsSuffered + ";"
+      out.println(l.place + ";" + l.workerSpawned + ";" + l.intraQueueSplit
+          + ";" + l.intraQueueFed + ";" + l.interQueueSplit + ";"
+          + l.interQueueFed + ";" + l.stealsAttempted + ";" + l.stealsSuccess
+          + ";" + l.stealsReceived + ";" + l.stealsSuffered + ";"
           + l.lifelineStealsAttempted + ";" + l.lifelineStealsSuccess + ";"
           + l.lifelineStealsReceived + ";" + l.lifelineStealsSuffered + ";"
           + l.lifelineThreadActive / 1e9 + ";" + l.lifelineThreadHold / 1e9

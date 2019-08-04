@@ -3,6 +3,8 @@
  */
 package handist.glb.examples.exactcover;
 
+import java.util.LinkedList;
+
 import handist.glb.examples.pentomino.Answer;
 import handist.glb.multiworker.GLBcomputer;
 import handist.glb.multiworker.GLBfactory;
@@ -52,20 +54,39 @@ public class ParallelNQueens {
     for (int i = 0; i < repetitions; i++) {
 
       final NQueens problem = new NQueens(size);
+      problem.init();
+      final NQueens initialBag = new NQueens();
+      initialBag.reserve = new LinkedList<>();
+      initialBag.reserve.add(problem);
+
       final int SIZE = size; // variable needs to be final for serialization of
                              // the lambda in the NQueens constructor
 
-      problem.init();
-      final Answer result = computer.compute(problem, () -> new Answer(),
+      final Answer result = computer.compute(initialBag, () -> new Answer(SIZE),
           () -> new NQueens(SIZE));
 
       final Logger log = computer.getLog();
 
-      System.out.println(i + "/" + repetitions + ";" + result.solutions + ";"
-          + result.nodes + ";" + log.initializationTime / 1e9 + ";"
-          + log.computationTime / 1e9 + ";" + log.resultGatheringTime / 1e9
-          + ";");
+      long treeSize = 0;
+      for (final long n : result.nodes) {
+        treeSize += n;
+      }
+
+      System.out.println(
+          i + "/" + repetitions + ";" + result.solutions + ";" + treeSize + ";"
+              + log.initializationTime / 1e9 + ";" + log.computationTime / 1e9
+              + ";" + log.resultGatheringTime / 1e9 + ";");
       System.err.println("Run " + i + " of " + repetitions);
+      System.err.print("Nodes; ");
+      for (int j = 0; j < SIZE; j++) {
+        System.err.print(result.nodes[j] + ";");
+      }
+      System.err.println();
+      System.err.print("Branch; ");
+      for (int j = 0; j < SIZE; j++) {
+        System.err.print(result.branch[j] + ";");
+      }
+      System.err.println();
       log.print(System.err);
     }
   }

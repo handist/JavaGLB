@@ -160,9 +160,14 @@ public class Pentomino implements Bag<Pentomino, Answer>, Serializable {
     }
     System.out.println();
 
+    long treeSize = 0;
+    for (final long n : p.treeNode) {
+      treeSize += n;
+    }
+
     System.out.println(
         "Total solutions " + p.width + "*" + p.height + "; " + p.solutions);
-    System.out.println("Tree nodes; " + p.treeNode);
+    System.out.println("Tree nodes; " + treeSize);
     System.out.println("Time (s); " + duration / 1e9);
 
   }
@@ -175,7 +180,9 @@ public class Pentomino implements Bag<Pentomino, Answer>, Serializable {
   public final int NB_PIECE;
 
   /** Counter for the number of nodes in the search tree */
-  transient long treeNode = 0;
+  transient long[] treeNode;
+  /** Counter for the number of nodes that yield a subtree */
+  transient long[] treeBranch;
 
   /**
    * Counter of the number of solutions found. Is incremented during the
@@ -321,6 +328,8 @@ public class Pentomino implements Bag<Pentomino, Answer>, Serializable {
     default:
       NB_PIECE = 0;
     }
+    treeNode = new long[NB_PIECE];
+    treeBranch = new long[NB_PIECE];
     placement = new PiecePlaced[NB_PIECE];
     for (int i = 0; i < NB_PIECE; i++) {
       placement[i] = new PiecePlaced();
@@ -736,7 +745,7 @@ public class Pentomino implements Bag<Pentomino, Answer>, Serializable {
    */
   public void step() {
     if (optionsLeft() > 0) {
-      treeNode++;
+      treeNode[depth]++;
       // We try a new position of the current piece
 
       // Select the current piece and the position to try
@@ -748,6 +757,7 @@ public class Pentomino implements Bag<Pentomino, Answer>, Serializable {
       low[depth]++;
 
       if (board.placePiece(piece, var)) {
+        treeBranch[depth]++;
         // place p has been placed, we remove it from the pieces left to place
         // and add it to the stack
         pp.index = index;
@@ -805,7 +815,11 @@ public class Pentomino implements Bag<Pentomino, Answer>, Serializable {
   @Override
   public void submit(Answer r) {
     r.solutions += solutions;
-    r.nodes += treeNode;
+    for (int i = 0; i < NB_PIECE; i++) {
+      r.nodes[i] += treeNode[i];
+      r.branch[i] += treeBranch[i];
+    }
+
   }
 
   /**

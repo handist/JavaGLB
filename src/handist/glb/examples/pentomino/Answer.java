@@ -32,14 +32,17 @@ public class Answer implements Fold<Answer>, Serializable {
   public long solutions;
 
   /** Counter for the number of nodes in the search tree */
-  public long nodes;
+  public long[] nodes;
+  /** Counter for the number of branches that yield a subtree at each level */
+  public long[] branch;
 
   /**
    * Constructor
    */
-  public Answer() {
+  public Answer(int size) {
     solutions = 0;
-    nodes = 0;
+    nodes = new long[size];
+    branch = new long[size];
   }
 
   /*
@@ -50,7 +53,11 @@ public class Answer implements Fold<Answer>, Serializable {
   @Override
   public void fold(Answer r) {
     solutions += r.solutions;
-    nodes += r.nodes;
+    for (int i = 0; i < nodes.length; i++) {
+      nodes[i] += r.nodes[i];
+      branch[i] += r.branch[i];
+    }
+
   }
 
 }

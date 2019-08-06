@@ -299,6 +299,11 @@ public class TspBag implements Bag<TspBag, Travel>, Serializable {
     return false;
   }
 
+  /**
+   * Counts the number of leaves left unexplored in the exploration tree
+   *
+   * @return the number of leaves in the tree
+   */
   public int leaves() {
     int leafCount = 0;
     for (int i = 0; i < index; i++) {

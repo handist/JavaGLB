@@ -63,7 +63,8 @@ public class Travel implements Fold<Travel>, Serializable {
    * Constructor
    * <p>
    * Initializes member {@link #bestSolutionCost} to {@link Integer#MAX_VALUE}
-   * and member {@link #bestPath} to <code>null</code>.
+   * and prepares some space in array {@link #bestPaths} to receive the first
+   * solutions to the TSP problem.
    */
   public Travel() {
     bestSolutionCost = Integer.MAX_VALUE;
@@ -100,7 +101,7 @@ public class Travel implements Fold<Travel>, Serializable {
     if (r.bestSolutionCost < bestSolutionCost) {
       bestSolutionCost = r.bestSolutionCost;
       bestPaths = r.bestPaths;
-      nbSolution = 0;
+      nbSolution = r.nbSolution;
     } else if (r.bestSolutionCost == bestSolutionCost) {
       addAllSolutions(r);
     }

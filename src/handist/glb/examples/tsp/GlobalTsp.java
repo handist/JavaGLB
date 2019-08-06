@@ -76,23 +76,23 @@ public class GlobalTsp {
 
     System.out.println(t);
 
-    for (int i = 0; i < t.nbSolution; i++) {
-      final byte[] path = t.bestPaths[i];
-      for (final byte b : path) {
-        System.out.print(b + " ");
-      }
-      System.out.println();
-      byte prev = 0;
-      int pathLength = 0;
-      int j = 0;
-      for (; j < path.length; j++) {
-        final int cost = problem.adjacencyMatrix[prev][path[j]];
-        prev = path[j];
-        pathLength += cost;
-      }
-      // pathLength += problem.adjacencyMatrix[path[j - 1]][0];
-      System.out.println("Path length check: " + pathLength);
-    }
+    // for (int i = 0; i < t.nbSolution; i++) {
+    // final byte[] path = t.bestPaths[i];
+    // for (final byte b : path) {
+    // System.out.print(b + " ");
+    // }
+    // System.out.println();
+    // byte prev = 0;
+    // int pathLength = 0;
+    // int j = 0;
+    // for (; j < path.length; j++) {
+    // final int cost = problem.adjacencyMatrix[prev][path[j]];
+    // prev = path[j];
+    // pathLength += cost;
+    // }
+    // // pathLength += problem.adjacencyMatrix[path[j - 1]][0];
+    // System.out.println("Path length check: " + pathLength);
+    // }
 
     t.printExploredNodes();
     computer.getLog().print(System.err);

@@ -10,7 +10,8 @@
  *  (C) copyright CS29 Fine 2018-2019.
  */
 /**
- * Package containing examples of the Global Load Balancers usage.
+ * Package containing some implementations of distributed computation using the
+ * Global Load Balancer library.
  *
  * @author Patrick Finnerty
  *

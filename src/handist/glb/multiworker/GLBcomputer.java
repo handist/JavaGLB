@@ -18,6 +18,7 @@ import java.util.Random;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.ForkJoinPool;
+import java.util.concurrent.ForkJoinPool.ManagedBlocker;
 import java.util.concurrent.atomic.AtomicIntegerArray;
 
 import apgas.GlobalRuntime;
@@ -28,99 +29,88 @@ import handist.glb.util.LifelineStrategy;
 import handist.glb.util.SerializableSupplier;
 
 /**
- * Class {@link GLBcomputer} implements a lifeline-based work-stealing mechanism
+ * Class {@link GLBcomputer} implements a lifeline-based work-stealing scheme
  * between hosts with an internal management that allows multiple workers to
  * perform computation concurrently on the same Java process.
  * <p>
  * This {@link GLBcomputer} handles distributed computation that fits the
  * {@link Bag} interface using multiple concurrent workers on the same hosts. It
- * follows the design proposed by Yamashita and Kamada in their article
- * <em>Introducing a Multithread and Multistage Mechanism for the Global Load
- * Balancing Library of X10.</em> available <a href=
- * "https://www.jstage.jst.go.jp/article/ipsjjip/24/2/24_416/_article">here</a>.
- * The current design does not implement the multi-stage mechanisms described in
- * their article, only the multi-worker part of their contribution.
- * <p>
- * The design is similar in spirit to the original lifeline-based Global Load
- * Balancer implemented in the X10 programming language. Inactive hosts
- * passively wait for some work to reach them through their lifelines to resume
- * computation and answer to lifelines requests made upon them. The major
- * difference with the original scheme comes in the fact that this
- * implementation accommodates for several concurrent workers on a single host.
- * Some load balance is performed internally to keep the workers occupied as
- * much as possible while the load balance operations between hosts remain
- * largely the same. The design relies on two {@link Bag} instances that are
- * kept aside to perform load balance. One is primarily in charge of load
- * balance operations between the workers running on the local host (member
- * {@link #intraPlaceQueue}) while the other in dedicated to steals from remote
- * hosts (member {@link #interPlaceQueue}). Some rules are made to transfer work
- * to and from either member when they become empty.
+ * follows the design proposed by Yamashita and Kamada in their article <a href=
+ * "https://www.jstage.jst.go.jp/article/ipsjjip/24/2/24_416/_article">Introducing
+ * a Multithread and Multistage Mechanism for the Global Load Balancing Library
+ * of X10</a>. The current design does not implement the multi-stage mechanisms
+ * described in their article.
  * <p>
  * The requirements on the kind of computation and the features available to the
  * programmer are further detailed in the documentation of classes {@link Bag}
- * and {@link Fold}. The tuning possibilities to the load balance algorithm are
- * presented in class {@link Configuration}.
+ * and {@link Fold}. The customization possibilities of the load balance
+ * algorithm are presented in class {@link Configuration}.
+ * <p>
+ * The work-stealing scheme is similar in spirit to the original lifeline-based
+ * Global Load Balancer implemented in the X10 programming language. Inactive
+ * hosts passively wait for some work to reach them through their lifelines to
+ * resume computation. The major difference with the original scheme comes in
+ * the fact that this implementation accommodates for several concurrent workers
+ * in a single Java process. Some load balance is performed internally to keep
+ * the workers occupied as much as possible while still allowing remote hosts to
+ * steal work. The design relies on two {@link Bag} instances that are kept
+ * aside to perform load balance. One is primarily in charge of load balance
+ * operations between the workers running on the local host (member
+ * {@link #intraPlaceQueue}) while the other in dedicated to steals from remote
+ * hosts (member {@link #interPlaceQueue}).
  *
  *
  * @author Patrick Finnerty
- * @see <a href=
- *      "https://www.jstage.jst.go.jp/article/ipsjjip/24/2/24_416/_article">https://www.jstage.jst.go.jp/article/ipsjjip/24/2/24_416/_article</a>
  */
 public class GLBcomputer extends PlaceLocalObject {
 
-  /** Place this instance is located on */
-  final Place HOME;
-
-  /** Lifelines this place can establish */
-  final int LIFELINE[];
-
-  /** Fully qualified domain of the class that provides the lifeline strategy */
-  final String LIFELINE_STRING;
-
   /**
-   * Maximum number of concurrent {@link #workerProcess(WorkerBag)} asynchronous
-   * activities on this place.
-   */
-  final int MAX_CONCURRENT_WORKERS;
-
-  /**
-   * Maximum number of steals on random hosts this place can perform before
-   * turning to its lifelines
-   */
-  final int MAX_RDM_STEALS;
-
-  /** Number of places in the system */
-  final int NB_PLACES;
-
-  /**
-   * ForkJoinPool of the APGAS runtime used at this place to process the
-   * activities. This member is kept in order for asynchronous
-   * {@link #workerProcess(WorkerBag)} activities to check if the pool has
-   * pending "shorter" activities and yield if necessary.
-   * <p>
-   * <em>This is not safe and subject to failures if the APGAS library were to
-   * evolve.</em>
-   * <p>
-   * The current APGAS implementation relies on a {@link ForkJoinPool} on each
-   * place to keep all the asynchronous tasks submitted to a place's runtime. If
-   * an other class were to be used, errors when initializing this field in the
-   * constructor of {@link GLBcomputer} are likely to appear.
+   * Utility class used to contain a bag and the id of a worker in a single
+   * instance.
    *
-   * @see #workerProcess(WorkerBag)
-   * @see #workerLock
-   * @see <a href=
-   *      "https://github.com/x10-lang/apgas/blob/master/apgas/src/apgas/impl/GlobalRuntimeImpl.java">apgas/src/apgas/impl/GlobalRuntimeImpl.java</a>
+   * @author Patrick Finnerty
+   *
    */
-  final ForkJoinPool POOL;
+  class WorkerBag {
 
-  /** Places that can establish a lifeline on this place */
-  final int REVERSE_LIFELINE[];
+    /** Bag held by worker */
+    @SuppressWarnings("rawtypes")
+    public Bag bag;
+
+    /** Integer identifier of the worker */
+    public int workerId;
+
+    /**
+     * Constructor
+     * <p>
+     * Initializes a {@link WorkerBag} instance which holds the given id and
+     * {@link Bag}. This is used to identify the workers
+     *
+     * @param id
+     *          identifier of the worker that holds the bag
+     * @param b
+     *          Bag instance associated to the given identifier
+     */
+    @SuppressWarnings("rawtypes")
+    public WorkerBag(int id, Bag b) {
+      workerId = id;
+      bag = b;
+    }
+  }
 
   /**
-   * Chunk of work processed by workers before checking if load-balance
-   * operations are necessary.
+   * Lock used to periodically call the method that will spread the information
+   * contained in the shared memory.
    */
-  final int WORK_UNIT;
+  TimeoutBlocker communicatorLock;
+
+  /**
+   * Boolean flag used to shut down the communicator activity when the
+   * computation has completed.
+   *
+   * @see #communicatorThread()
+   */
+  volatile boolean communicatorThreadShutdown;
 
   /**
    * {@link Logger} instance used to gather the {@link PlaceLogger}s of each
@@ -130,23 +120,12 @@ public class GLBcomputer extends PlaceLocalObject {
    */
   Logger computationLog;
 
-  /** Bag used to perform load balance between the worker within this place */
-  @SuppressWarnings("rawtypes")
-  Bag interPlaceQueue;
-
   /**
-   * Bag used to perform load-balance with remote hosts. It is also used to
-   * provide the lock used when accessing members {@link #intraPlaceQueue} or
-   * {@link #interPlaceQueue}.
+   * Configuration of this instance. Holds all the configuration information,
+   * including the initial configuration used and the parameters currently in
+   * use by the glb that can be modified by the tuning class instance.
    */
-  @SuppressWarnings("rawtypes")
-  Bag intraPlaceQueue;
-
-  /** Flag used to signal the fact member {@link #interPlaceQueue} is empty */
-  volatile boolean interQueueEmpty;
-
-  /** Flag used to signal the fact member {@link #intraPlaceQueue} is empty */
-  volatile boolean intraQueueEmpty;
+  final Configuration CONFIGURATION;
 
   /**
    * Array containing a flag for each worker (the worker's id is used as index
@@ -158,6 +137,38 @@ public class GLBcomputer extends PlaceLocalObject {
    * routine {@link #workerProcess(WorkerBag)}.
    */
   AtomicIntegerArray feedInterQueueRequested;
+
+  /** Place this instance is located on */
+  final Place HOME;
+
+  /** Bag used to perform load balance between the worker within this place */
+  @SuppressWarnings("rawtypes")
+  Bag interPlaceQueue;
+
+  /** Flag used to signal the fact member {@link #interPlaceQueue} is empty */
+  volatile boolean interQueueEmpty;
+
+  /**
+   * Bag used to perform load-balance with remote hosts. It is also used to
+   * provide the lock used when accessing members {@link #intraPlaceQueue} or
+   * {@link #interPlaceQueue}.
+   */
+  @SuppressWarnings("rawtypes")
+  Bag intraPlaceQueue;
+
+  /** Flag used to signal the fact member {@link #intraPlaceQueue} is empty */
+  volatile boolean intraQueueEmpty;
+
+  /** Lifelines this place can establish */
+  final int LIFELINE[];
+
+  /**
+   * Lock used by the {@link #lifelineAnswerThread()} to yield its thread. When
+   * a lifeline answer becomes possible, a {@link #workerProcess(WorkerBag)}
+   * will {@link Lock#unblock()} this lock to allow progress of the
+   * {@link #lifelineAnswerThread()}.
+   */
+  Lock lifelineAnswerLock;
 
   /**
    * Flag used to confirm that the lifelineAnswerThread has exited. This
@@ -172,14 +183,6 @@ public class GLBcomputer extends PlaceLocalObject {
    * spawning a new one.
    */
   volatile boolean lifelineAnswerThreadExited;
-
-  /**
-   * Lock used by the {@link #lifelineAnswerThread()} to yield its thread. When
-   * a lifeline answer becomes possible, a {@link #workerProcess(WorkerBag)}
-   * will {@link Lock#unblock()} this lock to allow progress of the
-   * {@link #lifelineAnswerThread()}.
-   */
-  Lock lifelineAnswerLock;
 
   /**
    * Collection used to keep track of the lifelines this place has established
@@ -233,6 +236,27 @@ public class GLBcomputer extends PlaceLocalObject {
   boolean logsGiven;
 
   /**
+   * ForkJoinPool of the APGAS runtime used at this place to process the
+   * activities. This member is kept in order for asynchronous
+   * {@link #workerProcess(WorkerBag)} activities to check if the pool has
+   * pending "shorter" activities and yield if necessary.
+   * <p>
+   * <em>This is not safe and subject to failures if the APGAS library were to
+   * evolve.</em>
+   * <p>
+   * The current APGAS implementation relies on a {@link ForkJoinPool} on each
+   * place to keep all the asynchronous tasks submitted to a place's runtime. If
+   * an other class were to be used, errors when initializing this field in the
+   * constructor of {@link GLBcomputer} are likely to appear.
+   *
+   * @see #workerProcess(WorkerBag)
+   * @see #workerLock
+   * @see <a href=
+   *      "https://github.com/x10-lang/apgas/blob/master/apgas/src/apgas/impl/GlobalRuntimeImpl.java">apgas/src/apgas/impl/GlobalRuntimeImpl.java</a>
+   */
+  final ForkJoinPool POOL;
+
+  /**
    * Random instance used to decide the victims of random steals.
    */
   Random random;
@@ -241,10 +265,13 @@ public class GLBcomputer extends PlaceLocalObject {
    * Instance in which the result of the computation performed at this place is
    * going to be stored. It is initialized with the given neutral element before
    * the computation starts in method
-   * {@link #reset(SerializableSupplier, SerializableSupplier)}.
+   * {@link #reset(SerializableSupplier, SerializableSupplier,SerializableSupplier, SerializableSupplier)}.
    */
   @SuppressWarnings("rawtypes")
   Fold result;
+
+  /** Places that can establish a lifeline on this place */
+  final int REVERSE_LIFELINE[];
 
   /**
    * Flag used to signal the {@link #lifelineAnswerThread()} that it needs to
@@ -268,13 +295,45 @@ public class GLBcomputer extends PlaceLocalObject {
   volatile int state;
 
   /**
+   * Instance responsible for tuning of the {@link GLBcomputer} various
+   * parameters during the computation. Is given to the {@link #logger} instance
+   * as the {@link PlaceLogger} class is in charge of calling the tuning method.
+   */
+  final Tuner tuner;
+
+  /**
+   * {@link ManagedBlocker} implementation for the tuner thread that blocks it
+   * until the tuning timeout expires.
+   */
+  TimeoutBlocker tunerLock;
+
+  /** Flag raised by the tuner activity when it terminates. */
+  volatile boolean tunerThreadExcited;
+
+  /**
+   * Instance used to transfer relevant data between the instances of
+   * {@link #result}.
+   */
+  @SuppressWarnings("rawtypes")
+  Whisperer whisperer;
+
+  /**
+   * Concurrent data structure for worker processes trying to yield. Each worker
+   * must poll an available lock from this data structure before using it. This
+   * avoids having concurrent workers attempting to yield using the same lock.
+   * In practice, the current implementation has a single lock:
+   * {@link #workerLock}, allowing a single worker to yield at the time.
+   */
+  ConcurrentLinkedQueue<Lock> workerAvailableLocks;
+
+  /**
    * Collection of the {@link WorkerBag} of the inactive worker threads on this
    * place.
    * <p>
    * <em>Before the computation</em>, as many empty {@link WorkerBag}s as
-   * concurrent workers ({@link #MAX_CONCURRENT_WORKERS}) are placed in this
-   * collection as part of method
-   * {@link #reset(SerializableSupplier, SerializableSupplier)}.
+   * concurrent workers ({@link Configuration#x}) are placed in this collection
+   * as part of method
+   * {@link #reset(SerializableSupplier, SerializableSupplier,SerializableSupplier, SerializableSupplier)}.
    * <p>
    * <em>During the computation</em>, this collection contains the {@link Bag}s
    * of the workers that are not active. Prior to launching a new asynchronous
@@ -297,22 +356,6 @@ public class GLBcomputer extends PlaceLocalObject {
   ConcurrentLinkedQueue<WorkerBag> workerBags;
 
   /**
-   * Concurrent data structure for worker processes trying to yield. Each worker
-   * must poll an available lock from this data structure before using it. This
-   * avoids having concurrent workers attempting to yield using the same lock.
-   * In practice, the current implementation has a single lock:
-   * {@link #workerLock}, allowing a single worker to yield at the time.
-   */
-  ConcurrentLinkedQueue<Lock> workerAvailableLocks;
-
-  /**
-   * Lock instance used by {@link #workerProcess(WorkerBag)} to yield their
-   * execution to allow other activities (such as remote steals or lifeline
-   * answers) to take place.
-   */
-  Lock workerLock;
-
-  /**
    * Keep tracks of the number of {@link #workerProcess(WorkerBag)} launched on
    * this place. Access is protected by synchronized blocks with
    * {@link #workerBags} as lock provider.
@@ -329,6 +372,91 @@ public class GLBcomputer extends PlaceLocalObject {
    * {@link PlaceLogger#workerYieldStop()}.
    */
   int workerCount;
+
+  /**
+   * Lock instance used by {@link #workerProcess(WorkerBag)} to yield their
+   * execution to allow other activities (such as remote steals or lifeline
+   * answers) to take place.
+   */
+  Lock workerLock;
+
+  /**
+   * Constructor (package visibility)
+   * <p>
+   * The constructor is kept hidden as some specific setup needs to be done for
+   * the distribution to take place. The class {@link GLBfactory#setupGLB()} is
+   * the method the programmer should use to get a computation service instance.
+   *
+   * @param workUnit
+   *          amount of work processed by workers before interrupting their
+   *          routine
+   * @param randomSteals
+   *          maximum number of steals this place can perform before turning to
+   *          its lifelines to steal some work
+   * @param s
+   *          lifeline strategy to be used by this place
+   * @param maximumConcurrentWorkers
+   *          number of maximum concurrent workers for this place
+   * @param tuningTimeout
+   *          number of nanoseconds that need to elapse between two calls to the
+   *          tuning class
+   * @param t
+   *          implementation of interface {@link Tuner} in charge of adjusting
+   *          the parameters used by the GLB during the computation.
+   * @param whisperInterval
+   *          interval at which the shared object contents are propagated to
+   *          neighboring nodes
+   */
+  GLBcomputer(int workUnit, int randomSteals, LifelineStrategy s,
+      int maximumConcurrentWorkers, long tuningTimeout, Tuner t,
+      long whisperInterval) {
+    String tunerClass;
+    if (t != null) {
+      tunerClass = t.getClass().toString();
+    } else {
+      tunerClass = "null";
+    }
+
+    CONFIGURATION = new Configuration(places().size(), maximumConcurrentWorkers,
+        workUnit, randomSteals, s.getClass().toString(), tuningTimeout,
+        tunerClass, whisperInterval);
+
+    tunerLock = new TimeoutBlocker();
+    communicatorLock = new TimeoutBlocker();
+    tuner = t;
+    POOL = (ForkJoinPool) GlobalRuntime.getRuntime().getExecutorService();
+    HOME = here();
+    LIFELINE = s.lifeline(HOME.id, CONFIGURATION.p);
+    REVERSE_LIFELINE = s.reverseLifeline(HOME.id, CONFIGURATION.p);
+
+    random = new Random(HOME.id);
+
+    feedInterQueueRequested = new AtomicIntegerArray(CONFIGURATION.x);
+
+    lifelineEstablished = new ConcurrentHashMap<>(LIFELINE.length);
+    lifelineThieves = new ConcurrentLinkedQueue<>();
+    logger = new PlaceLogger(CONFIGURATION, HOME.id);
+    workerBags = new ConcurrentLinkedQueue<>();
+
+    lifelineAnswerLock = new Lock();
+    workerAvailableLocks = new ConcurrentLinkedQueue<>();
+    workerLock = new Lock();
+    workerAvailableLocks.add(workerLock);
+  }
+
+  /**
+   * Sends the order to all places to gather their results in their
+   * {@link #result} member before sending it to place 0. This is done
+   * asynchronously, this method will block until all places have completed
+   * their {@link #collectResult} method.
+   */
+  void collectAllResult() {
+    finish(() -> {
+      for (final Place p : places()) {
+        asyncAt(p, () -> collectResult());
+      }
+    });
+  }
 
   /**
    * Makes the place gather the results contained by all its bags into its
@@ -357,74 +485,201 @@ public class GLBcomputer extends PlaceLocalObject {
   }
 
   /**
-   * Sends the order to all places to gather their results in their
-   * {@link #result} member before sending it to place 0. This is done
-   * asynchronously, this method will block until all places have completed
-   * their {@link #collectResult} method.
+   * Communication task that relies on a whispering scheme to propagate
+   * information. Is shut down by setting the flag
+   * {@link #communicatorThreadShutdown} to {@code true}.
    */
-  void collectAllResult() {
-    finish(() -> {
-      for (final Place p : places()) {
-        asyncAt(p, () -> collectResult());
+  @SuppressWarnings("unchecked")
+  void communicatorThread() {
+    while (!communicatorThreadShutdown) {
+      final long lastCall = System.nanoTime();
+      communicatorLock.setNextWakeup(lastCall + CONFIGURATION.whisperInterval);
+      try {
+        ForkJoinPool.managedBlock(tunerLock);
+      } catch (final InterruptedException e) {
+        // Ignore
       }
-    });
+      workerLock.unblock();
+      if (whisperer.hasValueToShare(result)) {
+        logger.communicationSent++;
+        final Serializable s = whisperer.getInformation(result);
+        for (final int l : LIFELINE) {
+          uncountedAsyncAt(place(l), () -> {
+            workerLock.unblock();
+            logger.communicationReceived.incrementAndGet();
+            whisperer.integrateInformation(s, result);
+          });
+        }
+      }
+    }
   }
 
   /**
-   * Activity spawned by method {@link #run(Bag)} to answer lifelines that were
-   * not able to be answered straight away.
-   * <p>
-   * This process yields until a lifeline answer is signaled as possible or the
-   * <em>shutdown</em> is activated by method {@link #run(Bag)}.
+   * Computes the given bag and returns the aggregated result of this
+   * computation.
+   *
+   * @param <R>
+   *          type of the result produced by the computation
+   * @param <B>
+   *          type of the computation bag
+   * @param bag
+   *          the computation to be performed
+   * @param initResultSupplier
+   *          function that provides new empty result instances
+   * @param emptyBagSupplier
+   *          function that provides new empty computation bag instances
+   * @return aggregated result of the computation
    */
-  @SuppressWarnings("rawtypes")
-  void lifelineAnswerThread() {
-    logger.lifelineAnswerThreadStarted();
+  public <R extends Fold<R> & Serializable, B extends Bag<B, R> & Serializable> R compute(
+      B bag, SerializableSupplier<R> initResultSupplier,
+      SerializableSupplier<B> emptyBagSupplier) {
+    return compute(bag, initResultSupplier, emptyBagSupplier, emptyBagSupplier);
+  }
 
-    do {
+  /**
+   * Computes the given bag and returns the result of the distributed
+   * computation.
+   *
+   * @param <R>
+   *          type parameter for the result produced by the computation
+   * @param <B>
+   *          type parameter for the computation to perform
+   * @param work
+   *          initial work to be processed
+   * @param resultInitializer
+   *          initializer for the result instance
+   * @param queueInitializer
+   *          initializer for the queue used for load balancing purposes
+   * @param workerInitializer
+   *          initializer for the workers bag
+   * @return instance of type R containing the result of the distributed
+   *         computation
+   */
+  @SuppressWarnings("unchecked")
+  public <R extends Fold<R> & Serializable, B extends Bag<B, R> & Serializable> R compute(
+      B work, SerializableSupplier<R> resultInitializer,
+      SerializableSupplier<B> queueInitializer,
+      SerializableSupplier<B> workerInitializer) {
+    // We reset every place
+    final long initStart = System.nanoTime();
+    resetAll(resultInitializer, queueInitializer, workerInitializer, null);
 
-      /*
-       * 1. Yield
-       */
-      logger.lifelineAnswerThreadInactive();
-      try {
-        ForkJoinPool.managedBlock(lifelineAnswerLock);
-      } catch (final InterruptedException e) {
-        // Should not happen since the implementation of Lock does not throw
-        // InterruptedException
-        e.printStackTrace();
+    // We launch the computation
+    final long start = System.nanoTime();
+    workerCount = 1;
+    state = 0;
+    finish(() -> run(work));
+    final long computationFinish = System.nanoTime();
+    // We gather the result back into place 0
+    collectAllResult();
+    final long resultGathering = System.nanoTime();
+
+    // Preparation for method getLog if it is called
+    computationLog = new Logger(initStart, start, computationFinish,
+        resultGathering, CONFIGURATION.p);
+    return (R) result;
+  }
+
+  /**
+   * Launches the computation with a periodic whisper based information sharing
+   * between the distributed processes. This method allows for differentiated
+   * implementations of the splitting methods between the workers and the queues
+   * used at each place for load balancing.
+   *
+   * @param <R>
+   *          Type of the result produced by the computation
+   * @param <B>
+   *          Type of the computation
+   * @param <W>
+   *          Type in charge of performing the communication between the hosts
+   * @param work
+   *          initial fragment of computation
+   * @param initResultSupplier
+   *          initializer for the result instance contained by each process
+   * @param emptyQueueSupplier
+   *          initializer for the queues used to balance the work between the
+   *          workers and between processes
+   * @param emptyBagSupplier
+   *          initializer for the worker's bag
+   * @param whispererSupplier
+   *          initializer for the instance in charge of handling the
+   *          communication of information during the computation
+   * @return instance of type <em>R</em> containing the result of the
+   *         computation
+   */
+  @SuppressWarnings("unchecked")
+  public <R extends Fold<R> & Serializable, B extends Bag<B, R> & Serializable, W extends Whisperer<? extends Serializable, R>> R computeWhisperedResult(
+      B work, SerializableSupplier<R> initResultSupplier,
+      SerializableSupplier<B> emptyQueueSupplier,
+      SerializableSupplier<B> emptyBagSupplier,
+      SerializableSupplier<W> whispererSupplier) {
+    // We reset every place
+    final long initStart = System.nanoTime();
+    resetAll(initResultSupplier, emptyQueueSupplier, emptyBagSupplier,
+        whispererSupplier);
+
+    // We launch the computation
+    final long start = System.nanoTime();
+
+    finish(() -> {
+      // First we launch a whisperer task on each host
+      for (final Place p : places()) {
+        asyncAt(p, () -> communicatorThread());
       }
-      lifelineToAnswer = false;
-      workerLock.unblock();
-      logger.lifelineThreadWokenUp++;
-      logger.lifelineAnswerThreadActive();
 
-      /*
-       * 2. Answer lifelines
-       */
-      while (!lifelineThieves.isEmpty() && !interQueueEmpty) {
-        Bag loot;
-        synchronized (intraPlaceQueue) {
-          loot = interPlaceQueue.split(true);
-          logger.interQueueSplit++;
-          interQueueEmpty = interPlaceQueue.isEmpty();
-        }
-        // Send the loot
-        final int h = HOME.id;
-        asyncAt(place(lifelineThieves.poll()), () -> deal(h, loot));
-        logger.lifelineStealsSuffered++; // non atomic operation, is unsafe
+      // Second we launch the actual computation
+      workerCount = 1;
+      state = 0;
+      finish(() -> run(work));
+
+      // The computation has completed, we shut down the whisperer tasks
+      for (final Place p : places()) {
+        uncountedAsyncAt(p, () -> {
+          communicatorThreadShutdown = true;
+          communicatorLock.unblock();
+        });
       }
-      if (interQueueEmpty) {
-        requestInterQueueFeed();
-      }
+    });
+    final long computationFinish = System.nanoTime();
+    // We gather the result back into place 0
+    collectAllResult();
+    final long resultGathering = System.nanoTime();
 
-      /*
-       * 3. Until "shutdown" is activated, repeat from step 1.
-       */
-    } while (!shutdown);
+    // Preparation for method getLog if it is called
+    computationLog = new Logger(initStart, start, computationFinish,
+        resultGathering, CONFIGURATION.p);
+    return (R) result;
+  }
 
-    logger.lifelineAnswerThreadEnded();
-    lifelineAnswerThreadExited = true;
+  /**
+   * Launches the computation with a periodic whisper based information sharing
+   * between the distributed processes.
+   *
+   * @param <R>
+   *          Type of the result produced by the computation
+   * @param <B>
+   *          Type of the computation
+   * @param <W>
+   *          Type in charge of performing the communication between the hosts
+   * @param bag
+   *          initial fragment of computation
+   * @param initResultSupplier
+   *          initializer for the result instance contained by each process
+   * @param emptyBagSupplier
+   *          initializer for the worker's bag and the two queues used to
+   *          balance the work
+   * @param whispererSupplier
+   *          initializer for the instance in charge of handling the
+   *          communication of information during the computation
+   * @return instance of type <em>R</em> containing the result of the
+   *         computation
+   */
+  public <R extends Fold<R> & Serializable, B extends Bag<B, R> & Serializable, W extends Whisperer<? extends Serializable, R> & Serializable> R computeWhisperedResult(
+      B bag, SerializableSupplier<R> initResultSupplier,
+      SerializableSupplier<B> emptyBagSupplier,
+      SerializableSupplier<W> whispererSupplier) {
+    return computeWhisperedResult(bag, initResultSupplier, emptyBagSupplier,
+        emptyBagSupplier, whispererSupplier);
   }
 
   /**
@@ -440,7 +695,8 @@ public class GLBcomputer extends PlaceLocalObject {
    * is placed in the first workerBag of collection {@link #workerBags} before
    * unlocking the "main" {@link #run(Bag)} thread progress which is either
    * stealing from random victims or stealing from lifelines. This will cause it
-   * to resume computation.
+   * to resume computation by spawning a first worker (with the merged loot) as
+   * part of the {@link #run(Bag)} routine.
    * <li>If the place is inactive, method {@link #run(Bag)} is launched with the
    * loot as parameter.
    * </ul>
@@ -455,10 +711,9 @@ public class GLBcomputer extends PlaceLocalObject {
   void deal(int victim, Bag loot) {
     workerLock.unblock();
     if (victim < 0) {
-      logger.stealsSuccess++;
+      logger.stealsSuccess.incrementAndGet();
     } else {
-      logger.lifelineStealsSuccess++; // This is not an atomic operation.
-                                      // Unsafe as concurrent access may occur.
+      logger.lifelineStealsSuccess.incrementAndGet();
       lifelineEstablished.put(victim, false);
     }
 
@@ -472,7 +727,7 @@ public class GLBcomputer extends PlaceLocalObject {
          */
         synchronized (intraPlaceQueue) {
           intraPlaceQueue.merge(loot);
-          logger.intraQueueFed++;
+          logger.intraQueueFed.incrementAndGet();
           intraQueueEmpty = false;
         }
 
@@ -510,38 +765,131 @@ public class GLBcomputer extends PlaceLocalObject {
   }
 
   /**
+   * Returns a Configuration instance showing the configuration of this GLB
+   * instance.
+   *
+   * @return Configuration instance containing the configuration of this GLB
+   *         instance.
+   */
+  public Configuration getConfiguration() {
+    return CONFIGURATION;
+  }
+
+  /**
+   * Gives back the log of the previous computation.
+   *
+   * @return the {@link PlaceLogger} instance of this place
+   */
+  public Logger getLog() {
+    if (!logsGiven) {
+
+      finish(() -> {
+        for (final Place p : places()) {
+
+          asyncAt(p, () -> {
+            final PlaceLogger l = logger;
+            asyncAt(place(0), () -> {
+              computationLog.addPlaceLogger(l);
+            });
+          });
+        }
+      });
+      logsGiven = true;
+    }
+    return computationLog;
+  }
+
+  /**
+   * Activity spawned by method {@link #run(Bag)} to answer lifelines that were
+   * not able to be answered straight away.
+   * <p>
+   * This process yields until a lifeline answer is signaled as possible or the
+   * <em>shutdown</em> is activated by method {@link #run(Bag)}.
+   */
+  @SuppressWarnings("rawtypes")
+  void lifelineAnswerThread() {
+    logger.lifelineAnswerThreadStarted();
+
+    do {
+
+      /*
+       * 1. Yield
+       */
+      logger.lifelineAnswerThreadInactive();
+      try {
+        ForkJoinPool.managedBlock(lifelineAnswerLock);
+      } catch (final InterruptedException e) {
+        // Should not happen since the implementation of Lock does not throw
+        // InterruptedException
+        e.printStackTrace();
+      }
+      lifelineToAnswer = false;
+      workerLock.unblock();
+      logger.lifelineThreadWokenUp++;
+
+      logger.lifelineAnswerThreadActive();
+
+      /*
+       * 2. Answer lifelines
+       */
+      while (!lifelineThieves.isEmpty()) {
+        Bag loot;
+        synchronized (intraPlaceQueue) {
+          if (interQueueEmpty) {
+            break;
+          }
+          loot = interPlaceQueue.split(true);
+          logger.interQueueSplit.incrementAndGet();
+          interQueueEmpty = interPlaceQueue.isEmpty();
+        }
+        // Send the loot
+        final int h = HOME.id;
+        asyncAt(place(lifelineThieves.poll()), () -> deal(h, loot));
+        logger.lifelineStealsSuffered.incrementAndGet();
+      }
+      if (interQueueEmpty) {
+        requestInterQueueFeed();
+      }
+
+      /*
+       * 3. Until "shutdown" is activated, repeat from step 1.
+       */
+    } while (!shutdown);
+
+    logger.lifelineAnswerThreadEnded();
+    lifelineAnswerThreadExited = true;
+  }
+
+  /**
    * Sub-routine of methods {@link #performRandomSteals()} and
    * {@link #performLifelineSteals()}. Gets some loot from the inter/intra place
    * queues and performs the status updates on these queues as necessary.
    *
    * @return some loot to be sent to thieves
    */
-  @SuppressWarnings({ "rawtypes", "unchecked" })
+  @SuppressWarnings("rawtypes")
   Bag loot() {
-    Bag loot;
+    Bag loot = null;
     // Quick check on the other queue
-    if (intraQueueEmpty) {
+    if (!interQueueEmpty) {
       synchronized (intraPlaceQueue) {
-        final Bag b = interPlaceQueue.split(false);
-        logger.interQueueSplit++;
-        intraPlaceQueue.merge(b);
-        logger.intraQueueFed++;
-        intraQueueEmpty = intraPlaceQueue.isEmpty(); // Update flag
-        loot = interPlaceQueue.split(true);
-        logger.interQueueSplit++;
-        interQueueEmpty = interPlaceQueue.isEmpty(); // Update flag
+        if (!interQueueEmpty) {
+          // if (intraQueueEmpty && interPlaceQueue.isSplittable()) {
+          // intraPlaceQueue.merge(interPlaceQueue.split(false));
+          // logger.interQueueSplit.incrementAndGet();
+          // logger.intraQueueFed.incrementAndGet();
+          // intraQueueEmpty = intraPlaceQueue.isEmpty(); // Update flag
+          // }
+          loot = interPlaceQueue.split(true);
+          logger.interQueueSplit.incrementAndGet();
+          interQueueEmpty = interPlaceQueue.isEmpty(); // Update flag
+        }
       }
-    } else {
-      // The inter queue has work, no worries
-      synchronized (intraPlaceQueue) {
-        loot = interPlaceQueue.split(true);
-        logger.interQueueSplit++;
-        interQueueEmpty = interPlaceQueue.isEmpty(); // Update flag
+      if (interQueueEmpty) {
+        requestInterQueueFeed();
       }
     }
-    if (interQueueEmpty) {
-      requestInterQueueFeed();
-    }
+
     return loot;
   }
 
@@ -560,9 +908,9 @@ public class GLBcomputer extends PlaceLocalObject {
     for (int i = 0; i < LIFELINE.length; i++) {
       final int lifeline = LIFELINE[i];
       if (!lifelineEstablished.get(lifeline)) { // We check if the lifeline was
-                                                // not
-        // previously established
-        logger.lifelineStealsAttempted++;
+                                                // previously established or not
+
+        logger.lifelineStealsAttempted.incrementAndGet();
         lifelineEstablished.put(lifeline, true);
 
         final int h = HOME.id;
@@ -610,13 +958,13 @@ public class GLBcomputer extends PlaceLocalObject {
    *         execution, {@code false} otherwise
    */
   boolean performRandomSteals() {
-    if (NB_PLACES < 2) {
+    if (CONFIGURATION.p < 2) {
       return false;
     }
-    for (int i = 0; i < MAX_RDM_STEALS; i++) {
-      logger.stealsAttempted++;
+    for (int i = 0; i < CONFIGURATION.w; i++) {
+      logger.stealsAttempted.incrementAndGet();
       // Choose a victim
-      int victim = random.nextInt(NB_PLACES - 1);
+      int victim = random.nextInt(CONFIGURATION.p - 1);
       if (victim >= HOME.id) {
         victim++;
       }
@@ -667,25 +1015,40 @@ public class GLBcomputer extends PlaceLocalObject {
    *          type parameter of the result the computation to come will produce
    * @param <B>
    *          type parameter of the computation
+   * @param <W>
+   *          type of the whisperer in charge of propagating shared information
+   *          between hosts
    *
    * @param resultInitSupplier
    *          supplier of empty result instance
-   * @param emptyBagSupplier
-   *          supplier of empty computation bags
+   * @param queueInitializer
+   *          supplier of empty queues for load balancing purposes
+   * @param workerInitializer
+   *          supplier of empty bag for workers
+   * @param whispererSupplier
+   *          supplier of instances in charge of propagating the shared
+   *          information across hosts. May be left {@code null} if this
+   *          communication feature is not desired.
    */
-  <R extends Fold<R> & Serializable, B extends Bag<B, R> & Serializable> void reset(
+  <R extends Fold<R> & Serializable, B extends Bag<B, R> & Serializable, W extends Whisperer<? extends Serializable, R>> void reset(
       SerializableSupplier<R> resultInitSupplier,
-      SerializableSupplier<B> emptyBagSupplier) {
+      SerializableSupplier<B> queueInitializer,
+      SerializableSupplier<B> workerInitializer,
+      SerializableSupplier<W> whispererSupplier) {
+
+    // Resetting the configuration to the initial values
+    CONFIGURATION.reset();
+
     // Resetting the logger
-    logger = new PlaceLogger(MAX_CONCURRENT_WORKERS, HOME.id);
+    logger = new PlaceLogger(CONFIGURATION, HOME.id);
     logsGiven = false;
 
     // Resetting the field used to keep the result
     result = resultInitSupplier.get();
 
     // Resetting the queues
-    interPlaceQueue = emptyBagSupplier.get();
-    intraPlaceQueue = emptyBagSupplier.get();
+    interPlaceQueue = queueInitializer.get();
+    intraPlaceQueue = queueInitializer.get();
 
     // Resetting flags
     lifelineAnswerLock.reset();
@@ -693,17 +1056,18 @@ public class GLBcomputer extends PlaceLocalObject {
     interQueueEmpty = true;
     intraQueueEmpty = true;
     lifelineAnswerThreadExited = true;
+    tunerThreadExcited = true;
     state = -2;
     shutdown = false;
 
     // Removing old bags and getting some new ones
     workerBags.clear();
 
-    for (int i = 0; i < MAX_CONCURRENT_WORKERS; i++) {// We put as many new
-                                                      // empty bags as there are
-                                                      // possible concurrent
-                                                      // workers
-      workerBags.add(new WorkerBag(i, emptyBagSupplier.get()));
+    for (int i = 0; i < CONFIGURATION.x; i++) {// We put as many new
+                                               // empty bags as there are
+                                               // possible concurrent
+                                               // workers
+      workerBags.add(new WorkerBag(i, workerInitializer.get()));
       feedInterQueueRequested.set(i, 1);
     }
 
@@ -720,13 +1084,26 @@ public class GLBcomputer extends PlaceLocalObject {
       }
     }
 
+    if (whispererSupplier != null) {
+      whisperer = whispererSupplier.get();
+      communicatorThreadShutdown = false;
+    } else {
+      whisperer = null;
+      communicatorThreadShutdown = true; // Not necessary as this member will
+                                         // not be used if there is no
+                                         // whisperer. However, setting the
+                                         // value to true maintains a certain
+                                         // consistency
+    }
+
   }
 
   /**
    * Resets all instances of GLBcomputer in the system.
    * <p>
-   * Calls method {@link #reset(SerializableSupplier, SerializableSupplier)} on
-   * all places in the system. The tasks are performed asynchronously. The
+   * Calls method
+   * {@link #reset(SerializableSupplier, SerializableSupplier,SerializableSupplier, SerializableSupplier)}
+   * on all places in the system. The tasks are performed asynchronously. The
    * method returns when all the instances on each place have completed their
    * reset.
    *
@@ -734,18 +1111,29 @@ public class GLBcomputer extends PlaceLocalObject {
    *          type parameter for result
    * @param <B>
    *          type parameter for computation bag
+   * @param <W>
+   *          type of the whisperer in charge of propagating shared information
+   *          between hosts
    *
    * @param resultInitSupplier
-   *          supplier of empty result instances
-   * @param emptyBagSupplier
-   *          supplier of empty computation bags
+   *          supplier of empty result instance
+   * @param queueInitializer
+   *          supplier of empty queues for load balancing purposes
+   * @param workerInitializer
+   *          supplier of empty bag for workers
+   * @param whispererSupplier
+   *          supplier of instances in charge of propagating the shared
+   *          information across hosts
    */
-  <R extends Fold<R> & Serializable, B extends Bag<B, R> & Serializable> void resetAll(
+  <R extends Fold<R> & Serializable, B extends Bag<B, R> & Serializable, W extends Whisperer<? extends Serializable, R>> void resetAll(
       SerializableSupplier<R> resultInitSupplier,
-      SerializableSupplier<B> emptyBagSupplier) {
+      SerializableSupplier<B> queueInitializer,
+      SerializableSupplier<B> workerInitializer,
+      SerializableSupplier<W> whispererSupplier) {
     finish(() -> {
       for (final Place p : places()) {
-        asyncAt(p, () -> reset(resultInitSupplier, emptyBagSupplier));
+        asyncAt(p, () -> reset(resultInitSupplier, queueInitializer,
+            workerInitializer, whispererSupplier));
       }
     });
 
@@ -764,36 +1152,45 @@ public class GLBcomputer extends PlaceLocalObject {
   @SuppressWarnings({ "rawtypes", "unchecked" })
   void run(Bag b) {
 
-    // Spawning lifelineAnswerThread activity
-    while (!lifelineAnswerThreadExited) {
-      ;
+    // Wait until the previous lifeline and tuner threads exited
+    while (!lifelineAnswerThreadExited || !tunerThreadExcited) {
     }
+
+    // Reset the flags and the locks
     lifelineAnswerThreadExited = false;
     shutdown = false;
-
     workerLock.reset();
     lifelineAnswerLock.reset();
-    async(() -> lifelineAnswerThread());
+    tunerLock.reset();
 
+    // Spawn the lifeline answer and the tuner thread activities
+    async(() -> lifelineAnswerThread());
+    if (tuner != null) {
+      tunerThreadExcited = false;
+      uncountedAsyncAt(here(), () -> tunerThread());
+    }
+
+    // Prepare the first worker to process the work given as parameter
     workerBags.peek().bag.merge(b);
 
     do {
       do {
-
+        // Spawn a first worker (which will spawn the others)
         final WorkerBag workerBag = workerBags.poll();
-
         finish(() -> workerProcess(workerBag)); // Working
 
-        // state was put into "stealing" (-1) by the last stopping worker
-
+        // All the workers have stopped, this place does not have any work and
+        // will now attempt to steal some from other places
       } while (performRandomSteals());
     } while (performLifelineSteals());
 
-    // Shutdown the lifelineAnswerThread
-    shutdown = true;
-    lifelineAnswerLock.unblock();
+    // Shutdown the lifelineAnswerThread and the tuner thread
+    shutdown = true; // Flag used to signal to the activities they need to
+                     // terminate
     logger.lifelineAnswerThreadHold();
-
+    lifelineAnswerLock.unblock(); // Unblocks the progress of the lifeline
+                                  // answer thread
+    tunerLock.unblock(); // Unblocks the progress of the tuner thread
   }
 
   /**
@@ -805,32 +1202,107 @@ public class GLBcomputer extends PlaceLocalObject {
    *          if this is a random steal
    */
   @SuppressWarnings("rawtypes")
-  void steal(int thief) {
+  synchronized void steal(int thief) {
     workerLock.unblock();
 
     final int h = HOME.id;
+    final Bag loot = loot();
 
     if (thief >= 0) {
-      logger.lifelineStealsReceived++; // Unsafe not an atomic operation
+      // A lifeline is trying to steal some work
+      logger.lifelineStealsReceived.incrementAndGet();
 
-      if (interQueueEmpty) {
+      if (loot == null) {
         // Steal does not immediately succeeds
         // The lifeline is registered to answer it later.
         lifelineThieves.offer(thief);
       } else {
-        logger.lifelineStealsSuffered++;
-
-        final Bag loot = loot();
+        logger.lifelineStealsSuffered.incrementAndGet();
         asyncAt(place(thief), () -> deal(h, loot));
       }
     } else {
-      logger.stealsReceived++;
-      if (!interQueueEmpty) {
-        logger.stealsSuffered++;
-        final Bag loot = loot();
+      // A random thief is trying to steal some work
+      logger.stealsReceived.incrementAndGet();
+      if (loot != null) {
+        logger.stealsSuffered.incrementAndGet();
         asyncAt(place(-thief - 1), () -> deal(-1, loot));
       }
     }
+  }
+
+  /**
+   * Activity in charge of the tuning mechanism
+   */
+  void tunerThread() {
+    long lastCall = tuner.placeLaunched(logger, CONFIGURATION);
+
+    for (;;) {
+      tunerLock.setNextWakeup(lastCall + CONFIGURATION.t);
+      try {
+        ForkJoinPool.managedBlock(tunerLock);
+      } catch (final InterruptedException e) {
+        // Ignore
+      }
+      workerLock.unblock();
+      if (shutdown) {
+        tunerThreadExcited = true;
+        return;
+      }
+      lastCall = tuner.tune(logger, CONFIGURATION);
+    }
+  }
+
+  /**
+   * Launches an distributed warm-up on each process in the distributed cluster.
+   * <p>
+   * For some computations, it can be beneficial to launch a smaller problem
+   * instance to let the Java Virtual Machine perform some optimizations that
+   * will yield better performance when the larger "real" computation is later
+   * launched. This method launches the provided computation on each host of the
+   * cluster. No load balance between the compute nodes in the cluster is
+   * performed for the warm-up, only the load balance operations between the
+   * workers of each host is performed.
+   *
+   * @param <R>
+   *          type of the result produced by the warm-up computation
+   * @param <B>
+   *          type of the computation at hand
+   * @param warmupBagSupplier
+   *          supplier of the work sample which will be computed at each place
+   *          independently as a warm-up
+   * @param resultInitializer
+   *          initializer for the result instance of each place
+   * @param queueInitializer
+   *          initializer for the two queues used at each place to perform load
+   *          balancing operations
+   * @param workerInitializer
+   *          initializer for the bags held by each worker
+   * @return logger instance containing information about the warm-up execution
+   */
+  public <R extends Fold<R> & Serializable, B extends Bag<B, R> & Serializable> Logger warmup(
+      SerializableSupplier<B> warmupBagSupplier,
+      SerializableSupplier<R> resultInitializer,
+      SerializableSupplier<B> queueInitializer,
+      SerializableSupplier<B> workerInitializer) {
+    final long reset = System.nanoTime();
+    final long start = System.nanoTime();
+    finish(() -> {
+      for (final Place p : places()) {
+        asyncAt(p, () -> {
+          reset(resultInitializer, queueInitializer, workerInitializer, null);
+          lifelineThieves.clear();
+          for (final int i : LIFELINE) {
+            lifelineEstablished.put(i, true);
+          }
+          deal(-1, warmupBagSupplier.get());
+        });
+      }
+    });
+    final long end = System.nanoTime();
+
+    computationLog = new Logger(reset, start, end, end, CONFIGURATION.p);
+
+    return getLog();
   }
 
   /**
@@ -842,9 +1314,9 @@ public class GLBcomputer extends PlaceLocalObject {
    * Each worker follows the following routine:
    * <ol>
    * <li>Spawns a new {@link #workerProcess(WorkerBag)} if the bag it is
-   * currently processing can be split and the {@link #MAX_CONCURRENT_WORKERS}
-   * limit was not reached (meaning there are {@link Bag} instances left in
-   * member {@link #workerBags})
+   * currently processing can be split and the {@link Configuration#x} limit was
+   * not reached (meaning there are {@link Bag} instances left in member
+   * {@link #workerBags})
    * <li>Checks if the {@link #intraPlaceQueue} bag is empty. If so and the
    * currently held bag can be split ({@link Bag#isSplittable()}), splits its
    * bag and merges the split content into {@link #intraPlaceQueue}.
@@ -901,10 +1373,14 @@ public class GLBcomputer extends PlaceLocalObject {
         if (intraQueueEmpty) {
           if (bag.isSplittable()) {
             synchronized (intraPlaceQueue) {
+              intraQueueEmpty = false; // Setting the flag early will prevent
+                                       // other workers with work to pile up on
+                                       // the entrance of this synchronized
+                                       // block
               intraPlaceQueue.merge(bag.split(false));
-              logger.intraQueueFed++;
+              logger.intraQueueFed.incrementAndGet();
+              intraQueueEmpty = intraPlaceQueue.isEmpty();
             }
-            intraQueueEmpty = false;
           }
         }
 
@@ -915,9 +1391,10 @@ public class GLBcomputer extends PlaceLocalObject {
           if (bag.isSplittable()) {
             synchronized (intraPlaceQueue) {
               interPlaceQueue.merge(bag.split(false));
-              logger.interQueueFed++;
+              logger.interQueueFed.incrementAndGet();
+              interQueueEmpty = interPlaceQueue.isEmpty();
             }
-            interQueueEmpty = false;
+
             feedInterQueueRequested.set(workerBag.workerId, 0);
           }
         }
@@ -934,7 +1411,7 @@ public class GLBcomputer extends PlaceLocalObject {
         /*
          * 5. Yield if need be
          */
-        if (logger.workerCount == MAX_CONCURRENT_WORKERS
+        if (workerCount == CONFIGURATION.x
             && (POOL.hasQueuedSubmissions() || lifelineToAnswer)) {
           final Lock l = workerAvailableLocks.poll();
           if (l != null) {
@@ -956,10 +1433,12 @@ public class GLBcomputer extends PlaceLocalObject {
         /*
          * 6. Process its bag
          */
-        bag.process(WORK_UNIT, result);
+        bag.process(CONFIGURATION.n, result);
 
       } while (!bag.isEmpty());// 7. Repeat previous steps until the bag becomes
                                // empty.
+
+      logger.workerStealing(); // The worker is now stealing
 
       /*
        * 8. Intra-place load balancing
@@ -972,35 +1451,43 @@ public class GLBcomputer extends PlaceLocalObject {
 
         // Attempt to steal some work from the intra-place bag
         if (!intraQueueEmpty) {
+          Bag loot = null;
           synchronized (intraPlaceQueue) {
-            bag.merge(intraPlaceQueue.split(true)); // If only a fragment can't
-                                                    // be
-                                                    // taken, we take the whole
-                                                    // content of the
-                                                    // intraPlaceQueue
-            intraQueueEmpty = intraPlaceQueue.isEmpty(); // Flag update
-            logger.intraQueueSplit++;
+            if (!intraQueueEmpty) {
+              loot = intraPlaceQueue.split(true); // If only a fragment can't
+                                                  // be taken, we take the whole
+                                                  // content of the
+                                                  // intraPlaceQueue
+              intraQueueEmpty = intraPlaceQueue.isEmpty(); // Flag update
+              logger.intraQueueSplit.incrementAndGet();
+            }
+          }
+          if (loot != null) {
+            bag.merge(loot);
           }
 
         } else if (!interQueueEmpty) { // Couldn't steal from intraQueue, try on
                                        // interQueue
-          Bag loot;
+          Bag loot = null;
           synchronized (intraPlaceQueue) {
-            loot = interPlaceQueue.split(true); // Take from interplace
-            logger.interQueueSplit++;
-            interQueueEmpty = interPlaceQueue.isEmpty(); // Update the flag
-            if (loot.isSplittable()) {
-              // Put some work back into the intra queue
-              intraPlaceQueue.merge(loot.split(false));
-              logger.intraQueueFed++;
-              intraQueueEmpty = intraPlaceQueue.isEmpty(); // Update the flag
+            if (!interQueueEmpty) {
+              loot = interPlaceQueue.split(true); // Take from interplace
+              logger.interQueueSplit.incrementAndGet();
+              interQueueEmpty = interPlaceQueue.isEmpty(); // Update the flag
+              /*
+               * if (loot.isSplittable()) { // Put some work back into the intra
+               * queue intraPlaceQueue.merge(loot.split(false));
+               * logger.intraQueueFed.incrementAndGet(); intraQueueEmpty =
+               * intraPlaceQueue.isEmpty(); // Update the flag }
+               */
             }
           }
           if (interQueueEmpty) {
             requestInterQueueFeed();
           }
-
-          bag.merge(loot);
+          if (loot != null) {
+            bag.merge(loot);
+          }
 
         } else {// Both queues were empty. The worker stops.
           workerBags.add(workerBag);
@@ -1018,162 +1505,9 @@ public class GLBcomputer extends PlaceLocalObject {
 
       // Stealing from the queues in the place was successful. The worker goes
       // back to processing its fraction of the work.
+      logger.workerResumed();
 
     } // Enclosing infinite for loop. Exit is done with the "return;" 7 lines
       // above.
-  }
-
-  /**
-   * Computes the given bag and returns the aggregated result of this
-   * computation.
-   *
-   * @param <R>
-   *          type of the result produced by the computation
-   * @param <B>
-   *          type of the computation bag
-   * @param bag
-   *          the computation to be performed
-   * @param initResultSupplier
-   *          function that provides new empty result instances
-   * @param emptyBagSupplier
-   *          function that provides new empty computation bag instances
-   * @return aggregated result of the computation
-   */
-  @SuppressWarnings("unchecked")
-  public <R extends Fold<R> & Serializable, B extends Bag<B, R> & Serializable> R compute(
-      B bag, SerializableSupplier<R> initResultSupplier,
-      SerializableSupplier<B> emptyBagSupplier) {
-    // We reset every place
-    resetAll(initResultSupplier, emptyBagSupplier);
-
-    // We launch the computation
-    final long start = System.nanoTime();
-    workerCount = 1;
-    state = 0;
-    finish(() -> run(bag));
-    final long computationFinish = System.nanoTime();
-    // We gather the result back into place 0
-    collectAllResult();
-    final long resultGathering = System.nanoTime();
-
-    // Preparation for method getLog if it is called
-    computationLog = new Logger(start, computationFinish, resultGathering,
-        NB_PLACES);
-    return (R) result;
-  }
-
-  /**
-   * Returns a Configuration instance showing the configuration of this GLB
-   * instance.
-   *
-   * @return Configuration instance containing the configuration of this GLB
-   *         instance.
-   */
-  public Configuration getConfiguration() {
-    return new Configuration(NB_PLACES, MAX_CONCURRENT_WORKERS, WORK_UNIT,
-        MAX_RDM_STEALS, LIFELINE_STRING);
-  }
-
-  /**
-   * Gives back the log of the previous computation.
-   *
-   * @return the {@link PlaceLogger} instance of this place
-   */
-  public Logger getLog() {
-    if (!logsGiven) {
-
-      finish(() -> {
-        for (final Place p : places()) {
-
-          asyncAt(p, () -> {
-            final PlaceLogger l = logger;
-            asyncAt(place(0), () -> {
-              computationLog.addPlaceLogger(l);
-            });
-          });
-        }
-      });
-      logsGiven = true;
-    }
-    return computationLog;
-  }
-
-  /**
-   * Constructor (package visibility)
-   * <p>
-   * The constructor is kept hidden as some specific setup needs to be done for
-   * the distribution to take place. The class {@link GLBfactory#setupGLB()} is
-   * the method the programmer should use to get a computation service instance.
-   *
-   * @param workUnit
-   *          amount of work processed by workers before interrupting their
-   *          routine
-   * @param randomSteals
-   *          maximum number of steals this place can perform before turning to
-   *          its lifelines to steal some work
-   * @param s
-   *          lifeline strategy to be used by this place
-   * @param maximumConcurrentWorkers
-   *          number of maximum concurrent workers for this place
-   */
-  GLBcomputer(int workUnit, int randomSteals, LifelineStrategy s,
-      int maximumConcurrentWorkers) {
-    MAX_CONCURRENT_WORKERS = maximumConcurrentWorkers;
-    MAX_RDM_STEALS = randomSteals;
-    POOL = (ForkJoinPool) GlobalRuntime.getRuntime().getExecutorService();
-    WORK_UNIT = workUnit;
-    HOME = here();
-    NB_PLACES = places().size();
-    LIFELINE = s.lifeline(HOME.id, NB_PLACES);
-    LIFELINE_STRING = s.getClass().toString();
-    REVERSE_LIFELINE = s.reverseLifeline(HOME.id, NB_PLACES);
-
-    random = new Random(HOME.id);
-
-    feedInterQueueRequested = new AtomicIntegerArray(MAX_CONCURRENT_WORKERS);
-
-    lifelineEstablished = new ConcurrentHashMap<>(LIFELINE.length);
-    lifelineThieves = new ConcurrentLinkedQueue<>();
-    logger = new PlaceLogger(MAX_CONCURRENT_WORKERS, HOME.id);
-    workerBags = new ConcurrentLinkedQueue<>();
-
-    lifelineAnswerLock = new Lock();
-    workerAvailableLocks = new ConcurrentLinkedQueue<>();
-    workerLock = new Lock();
-    workerAvailableLocks.add(workerLock);
-  }
-
-  /**
-   * Utility class used to contain a bag and the id of a worker in a single
-   * class instance.
-   *
-   * @author Patrick Finnerty
-   *
-   */
-  class WorkerBag {
-
-    /** Bag held by worker */
-    @SuppressWarnings("rawtypes")
-    public Bag bag;
-
-    /** Integer identifier of the worker */
-    public int workerId;
-
-    /**
-     * Constructor
-     * <p>
-     * Initializes a {@link WorkerBag} instance which holds the given id and
-     * {@link Bag}. This is used to identify the workers
-     *
-     * @param id
-     *          identifier of the worker that holds the bag
-     * @param b
-     *          Bag instance associated to the given identifier
-     */
-    @SuppressWarnings("rawtypes")
-    public WorkerBag(int id, Bag b) {
-      workerId = id;
-      bag = b;
-    }
   }
 }

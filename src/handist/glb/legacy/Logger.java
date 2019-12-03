@@ -18,7 +18,9 @@ import java.io.Serializable;
  * Class Logger
  * <p>
  * Class used to track the runtime of the global load balancer execution. It is
- * inspired by the Logger class of the X10 Global Load Balancer library.
+ * inspired by the Logger class of the <a href=
+ * "https://github.com/x10-lang/x10/tree/master/x10.runtime/src-x10/x10/glb">X10
+ * Global Load Balancer library</a>.
  *
  * @author Patrick Finnerty
  *

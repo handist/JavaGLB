@@ -10,11 +10,18 @@
  *  (C) copyright CS29 Fine 2018-2019.
  */
 /**
- * Package containing the 'legacy' single worker Global Load Balancer design of
- * the original GLB design first programmed in the X10 programming language.
+ * Package containing the 'legacy' Global Load Balancer design of the original
+ * X10 implementation.
  * <p>
- * Two implementations of the lifeline-based Global Load Balance are provided.
- * One uses a fixed directed-loop strategy
+ * The global load balancer expects computation that implements the
+ * {@link handist.glb.legacy.Bag} interface.
+ * <p>
+ * Two implementations of the global load balancer are provided.
+ * {@link handist.glb.legacy.LoopGLBProcessor} uses a directed-loop strategy
+ * between places while {@link handist.glb.legacy.GenericGLBProcessor} can
+ * handle any user-defined strategy. Both these implementations are presented as
+ * a computing service which users of the library can obtain from the factory
+ * class {@link handist.glb.legacy.GLBProcessorFactory}.
  *
  * @author Patrick Finnerty
  *

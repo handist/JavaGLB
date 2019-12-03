@@ -16,7 +16,6 @@ import java.security.DigestException;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 
-import handist.glb.examples.Sum;
 import handist.glb.legacy.Bag;
 import handist.glb.legacy.GLBProcessor;
 import handist.glb.legacy.GLBProcessorFactory;
@@ -26,10 +25,11 @@ import handist.glb.util.HypercubeStrategy;
 /**
  * Implementation of an Unbalanced Tree Search computation.
  * <p>
- * This class is an adaptation from the apgas.examples.UTS class to fit the
- * {@link handist.glb.legacy.Bag} interface. The result returned by
- * {@link LegacyUTS} is the number of nodes explored, using the {@link Sum}
- * class.
+ * This class is an adaptation from the <a href=
+ * "https://github.com/x10-lang/apgas/blob/master/apgas.examples/src/apgas/examples/UTS.java">apgas.examples.UTS</a>
+ * class to fit the {@link handist.glb.legacy.Bag} interface of the "legacy"
+ * load balancer. The result returned by {@link LegacyUTS} is the number of
+ * nodes explored, using the {@link Sum} class.
  *
  * @author Patrick Finnerty
  *

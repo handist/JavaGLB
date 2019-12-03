@@ -16,7 +16,7 @@ import java.util.function.Supplier;
 
 /**
  * Serializable {@link Supplier} interface. Used to lift some type inference
- * issues that occur depending on the compiler used.
+ * issues that occur with our library depending on the compiler used.
  *
  *
  * @author Patrick Finnerty

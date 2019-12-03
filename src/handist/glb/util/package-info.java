@@ -10,7 +10,8 @@
  *  (C) copyright CS29 Fine 2018-2019.
  */
 /**
- * Package containing some utilities common to all Load Balancers.
+ * Package containing some utilities common to both the legacy "X10-style" load
+ * balancer and the multithreaded GLB.
  * <p>
  * Class {@link handist.glb.util.Fold} is the result abstraction of the
  * distributed computation. The programmer will need to implement this
@@ -22,8 +23,8 @@
  * interface used by default in the load balancers.
  * <p>
  * {@link handist.glb.util.SerializableSupplier} is an interface used to lift
- * some type inference difficulties with some Java compilers. The programmer
- * does not need to concern with that Functional interface.
+ * some type inference difficulties with some Java compilers. Programmers do not
+ * need to concern themselves with that Functional interface.
  *
  * @author Patrick Finnerty
  *

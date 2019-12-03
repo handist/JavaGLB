@@ -21,15 +21,14 @@ import handist.glb.util.LifelineStrategy;
 
 /**
  * Factory class for {@link GLBProcessor}s. Sets up GLBProcessors instances to
- * make them readily available for computation before returning them to the
- * user.
+ * make them readily available for computation. user.
  * <p>
  * The distributed nature of the computation implies some amount of preparation
- * before the computation van begin. More specifically, a distributed object
- * needs to be setup, with an instance of the object present on each of the
- * places. To avoid possible misuse by the user of the library, we provide a
- * factory method for the kind of global load balancer they want to use in their
- * distributed computation.
+ * before the computation can begin. Specifically, a distributed object needs to
+ * be setup, with an instance of the object present on each of the places that
+ * will participate in the distributed computation. This class handles this
+ * complex initialization process from the user and returns the local instance
+ * of the {@link GLBProcessor} implementation chosen.
  *
  * @author Patrick Finnerty
  *

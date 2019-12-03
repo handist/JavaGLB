@@ -21,8 +21,8 @@ import handist.glb.util.Fold;
  * in the {@link GenericGLBProcessor} implementation. It is identical to
  * {@link BagQueue}, albeit protected against concurrency accesses susceptible
  * to occur with the {@link GenericGLBProcessor} implementation. It is the main
- * role of this class to prevent concurrent accesses to the {@link Bag} held by
- * it.
+ * role of this class to prevent concurrent accesses to the {@link Bag} instance
+ * held by it.
  *
  * @param <R>
  *          The result type of the handled computation
@@ -32,10 +32,16 @@ import handist.glb.util.Fold;
  */
 class ConcurrentBagQueue<R extends Fold<R> & Serializable> {
   /*
-   * The implementation has been made to accommodate for bags of different types
-   * to be held simultaneously. However such feature was not made accessible to
-   * the programmer and remains unused.
+   * The implementation has been designed to accommodate for bags of different
+   * types to be held simultaneously. However such feature was not made
+   * accessible to the programmer and remains unused.
    */
+
+  /** Array used to contain the {@link Bag}s */
+  private Object bags[] = new Bag[16];
+
+  /** First free index in the {@link #bags} array */
+  private int last = 0;
 
   /**
    * Index of the last Bag that actually had some work in it. This value is
@@ -44,18 +50,22 @@ class ConcurrentBagQueue<R extends Fold<R> & Serializable> {
    */
   private int lastPlaceWithWork = 0;
 
-  /** First free index in the {@link #bags} array */
-  private int last = 0;
-
-  /** Array used to contain the {@link Bag}s */
-  private Object bags[] = new Bag[16];
+  /**
+   * Constructor
+   */
+  public ConcurrentBagQueue() {
+  }
 
   /**
-   * Doubles the capacity of the {@link #bags} array, copying the contained
-   * {@link Bag}s to the new array.
+   * Removes all {@link Bag}s from the {@link ConcurrentBagQueue}. The
+   * {@link ConcurrentBagQueue} is empty when this method returns.
    */
-  private void grow() {
-    bags = Arrays.copyOf(bags, bags.length * 2);
+  public void clear() {
+    for (int i = 0; i < bags.length; i++) {
+      bags[i] = null;
+    }
+    last = 0;
+    lastPlaceWithWork = 0;
   }
 
   /**
@@ -93,15 +103,11 @@ class ConcurrentBagQueue<R extends Fold<R> & Serializable> {
   }
 
   /**
-   * Removes all {@link Bag}s from the {@link ConcurrentBagQueue}. The
-   * {@link ConcurrentBagQueue} is empty when this method returns.
+   * Doubles the capacity of the {@link #bags} array, copying the contained
+   * {@link Bag}s to the new array.
    */
-  public void clear() {
-    for (int i = 0; i < bags.length; i++) {
-      bags[i] = null;
-    }
-    last = 0;
-    lastPlaceWithWork = 0;
+  private void grow() {
+    bags = Arrays.copyOf(bags, bags.length * 2);
   }
 
   /**
@@ -184,12 +190,6 @@ class ConcurrentBagQueue<R extends Fold<R> & Serializable> {
       }
       return split;
     }
-  }
-
-  /**
-   * Constructor
-   */
-  public ConcurrentBagQueue() {
   }
 
 }

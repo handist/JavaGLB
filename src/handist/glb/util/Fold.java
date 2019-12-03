@@ -29,10 +29,10 @@ import handist.glb.legacy.GLBProcessor;
  * <p>
  * When the {@link GLBProcessor} computation ends, there will be as many
  * {@link Fold} implementation instances as there were places used for the
- * computation. There is no guarantee as to the order in which these (many)
- * instances will be folded into a single instance. Therefore the
- * {@link #fold(Fold)} implementation has to be symmetric in order for results
- * to be consistent from a computation to an other.
+ * computation. There is no guarantee as to the order in which these
+ * (potentially many) instances will be folded into a single instance. Therefore
+ * the {@link #fold(Fold)} implementation has to be symmetric in order for
+ * results to be consistent from a computation to an other.
  * <p>
  * Implementation classes should implement the interface with themselves as
  * parameter type as well as the {@link Serializable} interface to ensure proper
@@ -64,10 +64,8 @@ import handist.glb.legacy.GLBProcessor;
  *          implementing class itself (reflective-type method implementation)
  *
  * @author Patrick Finnerty
- * @see Bag
- *
  */
-public interface Fold<R extends Fold<R> & Serializable> {
+public interface Fold<R extends Fold<?> & Serializable> {
 
   /**
    * Folds (merges) the given parameter's result into this instance.

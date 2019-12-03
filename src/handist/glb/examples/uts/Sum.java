@@ -9,7 +9,7 @@
  *
  *  (C) copyright CS29 Fine 2018-2019.
  */
-package handist.glb.examples;
+package handist.glb.examples.uts;
 
 import java.io.Serializable;
 

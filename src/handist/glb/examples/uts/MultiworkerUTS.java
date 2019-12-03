@@ -17,7 +17,6 @@ import java.security.DigestException;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 
-import handist.glb.examples.Sum;
 import handist.glb.multiworker.Bag;
 import handist.glb.multiworker.Configuration;
 import handist.glb.multiworker.GLBcomputer;
@@ -26,64 +25,21 @@ import handist.glb.multiworker.GLBfactory;
 /**
  * Implementation of an Unbalanced Tree Search computation.
  * <p>
- * This class is an adaptation from the apgas.examples.UTS class to fit the
- * {@link Bag} interface. The result returned by {@link MultiworkerUTS} is the
- * number of nodes explored, using the {@link Sum} class.
+ * This class is an adaptation from the <a href=
+ * "https://github.com/x10-lang/apgas/blob/master/apgas.examples/src/apgas/examples/UTS.java">apgas.examples.UTS</a>
+ * class to fit the {@link Bag} interface for the multithreaded global load
+ * balaner. The result returned by {@link MultiworkerUTS} is the total number of
+ * nodes explored, using the {@link Sum} class.
  *
  * @author Patrick Finnerty
  */
 public class MultiworkerUTS implements Bag<MultiworkerUTS, Sum>, Serializable {
 
-  /** Serial Version UID */
-  protected static final long serialVersionUID = 4654891201916215845L;
-
   /** Branching factor: 4 */
   protected static final double den = Math.log(4.0 / (1.0 + 4.0));
 
-  /**
-   * {@link MessageDigest} instance held by this {@link Bag} instance. This
-   * member is set to transient so as not to be serialized when instances of
-   * this class are transfered from one place to another to perform load
-   * balance.
-   */
-  protected transient MessageDigest md;
-
-  /**
-   * Keeps track of the current position in the arrays. As the tree exploration
-   * progresses, the contents of the arrays will be overwritten repeatedly.
-   */
-  protected int currentDepth;
-
-  /** Array containing the splittable hash used to generate the tree */
-  protected byte[] hash;
-
-  /** Array keeping track of the current depth of the node */
-  protected int[] depth;
-
-  /**
-   * Array containing the lower id of the next node to be explored at each level
-   * in the tree. The actual number of leaves remaining to be explored at each
-   * level is given by computing the difference between {@link #lower} and
-   * {@link #upper} at a given index.
-   */
-  protected int[] lower;
-
-  /**
-   * Array containing the upper id of the next node to be explored at each level
-   * in the tree. The actual number of leaves remaining to be explored at each
-   * level is given by computing the difference between {@link #lower} and
-   * {@link #upper} at a given index. When exploring the tree, the node with the
-   * highest id is always chosen first. When all the recursive children of this
-   * node have been explored, the value in the {@link #upper} array is
-   * decremented and the next node is explored (provided {@link #lower} at that
-   * index is inferior to {@link #upper}).
-   */
-  protected int[] upper;
-
-  /**
-   * Counts the number of nodes explored.
-   */
-  protected long exploredNodes;
+  /** Serial Version UID */
+  protected static final long serialVersionUID = 4654891201916215845L;
 
   /**
    * Returns the SHA-1 {@link MessageDigest} to be used to generate the seed of
@@ -101,8 +57,123 @@ public class MultiworkerUTS implements Bag<MultiworkerUTS, Sum>, Serializable {
   }
 
   /**
-   * Generates the tree seed and the children nodes of the current node being
-   * explored.
+   * Launches a distributed computation of the Unbalanced Tree Search using the
+   * multiworker Global Load Balancer.
+   *
+   * @param args
+   *          tree depth (positive integer), number of repetitions to perform
+   *          (positive integer), show advanced computation statistics ("true"
+   *          or "false)
+   */
+  public static void main(String[] args) {
+    int depth;
+    int repetitions;
+    boolean showLog;
+    try {
+      depth = Integer.parseInt(args[0]);
+      repetitions = Integer.parseInt(args[1]);
+      showLog = Boolean.parseBoolean(args[2]);
+    } catch (final Exception e) {
+      System.err.println("Arguments: <tree depth> <repetitions> <show log>");
+      return;
+    }
+
+    final MultiworkerUTS warmup = new MultiworkerUTS(64);
+    warmup.seed(19, depth - 2);
+
+    GLBcomputer glb;
+    try {
+      glb = GLBfactory.setupGLB();
+
+      final Configuration conf = glb.getConfiguration();
+
+      glb.compute(warmup, () -> new Sum(0), () -> new MultiworkerUTS(64));
+      System.out.println("UTS Depth: " + depth + " " + conf);
+      System.err.println("UTS Depth: " + depth + " " + conf);
+
+      for (int i = 0; i < repetitions; i++) {
+        final MultiworkerUTS taskBag = new MultiworkerUTS(64);
+        taskBag.seed(19, depth);
+
+        final Sum s = glb.compute(taskBag, () -> new Sum(0),
+            () -> new MultiworkerUTS(64));
+        System.out.println("Run " + i + "/" + repetitions + ";" + s.sum + ";"
+            + glb.getLog().computationTime / 1e9 + ";");
+        if (showLog) {
+          glb.getLog().print(System.err);
+        }
+      }
+    } catch (final ReflectiveOperationException e) {
+
+      e.printStackTrace();
+    }
+
+  }
+
+  /**
+   * Keeps track of the current position in the arrays.
+   */
+  int currentDepth;
+
+  /** Array keeping track of the current depth of the node */
+  int[] depth;
+
+  /**
+   * Counts the number of nodes explored.
+   */
+  long exploredNodes;
+
+  /** Array containing the splittable hash used to generate the tree */
+  byte[] hash;
+
+  /**
+   * Array containing the lower id of the next node to be explored at each level
+   * in the tree. The actual number of leaves remaining to be explored at each
+   * level is given by computing the difference between {@link #lower} and
+   * {@link #upper} at a given index.
+   */
+  int[] lower;
+
+  /**
+   * {@link MessageDigest} instance held by this {@link Bag} instance. This
+   * member is set to transient so as not to be serialized when instances of
+   * this class are transfered from one place to another to perform load
+   * balance.
+   */
+  transient MessageDigest md;
+
+  /**
+   * Array containing the upper id of the next node to be explored at each level
+   * in the tree. The actual number of leaves remaining to be explored at each
+   * level is given by computing the difference between {@link #lower} and
+   * {@link #upper} at a given index. When exploring the tree, the node with the
+   * highest id is always chosen first. When all the recursive children of this
+   * node have been explored, the value in the {@link #upper} array is
+   * decremented and the next node is explored (provided {@link #lower} at that
+   * index is inferior to {@link #upper}).
+   */
+  int[] upper;
+
+  /**
+   * Initializes a new instance able to hold a tree exploration of depth the
+   * specified parameter without needing to increase the size of the various
+   * arrays used in the implementation.
+   *
+   * @param initialSize
+   *          depth of the tree exploration
+   */
+  public MultiworkerUTS(int initialSize) {
+    hash = new byte[initialSize * 20 + 4];
+    depth = new int[initialSize];
+    lower = new int[initialSize];
+    upper = new int[initialSize];
+
+    exploredNodes = 0;
+    md = getMessageDigest();
+  }
+
+  /**
+   * Generates the seed and the children nodes of node being currently explored.
    *
    * @param d
    *          maximum depth of the tree to explore
@@ -117,24 +188,25 @@ public class MultiworkerUTS implements Bag<MultiworkerUTS, Sum>, Serializable {
       grow();
     }
     ++exploredNodes; // We are exploring one node (expanding its child nodes)
-    final int offset = currentDepth * 20;
-    md.digest(hash, offset, 20); // Writes onto array hash on
-                                 // the next 20
-    // cells or bytes.
 
-    // What is the tree going to look like ?
+    // Writes onto array hash on the next 20 cells (=bytes)
+    final int offset = currentDepth * 20;
+    md.digest(hash, offset, 20);
+
+    // Determine the number of child nodes based on the generated seed
+
+    // v is the pseudo-random positive integer made out of the 4 bytes in the
+    // hash array generated by the message digest just above
     final int v = ((0x7f & hash[offset + 16]) << 24)
         | ((0xff & hash[offset + 17]) << 16) | ((0xff & hash[offset + 18]) << 8)
-        | (0xff & hash[offset + 19]); // v is the positive integer made of the 4
-                                      // bytes in the hash array generated by
-                                      // the message digest 'digest' previous
-                                      // call
+        | (0xff & hash[offset + 19]);
+
     final int n = (int) (Math.log(1.0 - v / 2147483648.0) / den);
     // 2.147.483.648 is written as 1 followed by 63 zeros in binary : -1.
     // v / 2.147.483.648 is then in the range (-2147483647,0]
     // n is then a positive integer, sometimes = 0, sometimes greater.
     if (n > 0) {
-      if (d > 1) { // Bound for tree depth
+      if (d > 1) { // Bound for the tree depth
         // We create node size
         depth[currentDepth] = d - 1;
         lower[currentDepth] = 0;
@@ -144,25 +216,6 @@ public class MultiworkerUTS implements Bag<MultiworkerUTS, Sum>, Serializable {
         exploredNodes += n;
       }
     }
-  }
-
-  /**
-   * Increases the size of the arrays used in the implementation.
-   */
-  private void grow() {
-    final int n = depth.length * 2;
-    final byte[] h = new byte[n * 20 + 4];
-    final int[] d = new int[n];
-    final int[] l = new int[n];
-    final int[] u = new int[n];
-    System.arraycopy(hash, 0, h, 0, currentDepth * 20);
-    System.arraycopy(depth, 0, d, 0, currentDepth);
-    System.arraycopy(lower, 0, l, 0, currentDepth);
-    System.arraycopy(upper, 0, u, 0, currentDepth);
-    hash = h;
-    depth = d;
-    lower = l;
-    upper = u;
   }
 
   /**
@@ -197,6 +250,25 @@ public class MultiworkerUTS implements Bag<MultiworkerUTS, Sum>, Serializable {
     md.update(hash, offset, 24); // seed takes into account both the parent seed
                                  // and 'u'
     digest(d, md);
+  }
+
+  /**
+   * Increases the size of the arrays used in the implementation.
+   */
+  private void grow() {
+    final int n = depth.length * 2;
+    final byte[] h = new byte[n * 20 + 4];
+    final int[] d = new int[n];
+    final int[] l = new int[n];
+    final int[] u = new int[n];
+    System.arraycopy(hash, 0, h, 0, currentDepth * 20);
+    System.arraycopy(depth, 0, d, 0, currentDepth);
+    System.arraycopy(lower, 0, l, 0, currentDepth);
+    System.arraycopy(upper, 0, u, 0, currentDepth);
+    hash = h;
+    depth = d;
+    lower = l;
+    upper = u;
   }
 
   /*
@@ -384,79 +456,6 @@ public class MultiworkerUTS implements Bag<MultiworkerUTS, Sum>, Serializable {
   @Override
   public void submit(Sum r) {
     r.sum += exploredNodes;
-  }
-
-  /**
-   * Initializes a new instance able to hold a tree exploration of depth the
-   * specified parameter without needing to increase the size of the various
-   * arrays used in the implementation.
-   *
-   * @param initialSize
-   *          depth of the tree exploration
-   */
-  public MultiworkerUTS(int initialSize) {
-    hash = new byte[initialSize * 20 + 4];
-    depth = new int[initialSize];
-    lower = new int[initialSize];
-    upper = new int[initialSize];
-
-    exploredNodes = 0;
-    md = getMessageDigest();
-  }
-
-  /**
-   * Launches a distributed computation of the Unbalanced Tree Search using the
-   * multiworker Global Load Balancer.
-   *
-   * @param args
-   *          tree depth (positive integer), number of repetitions to perform
-   *          (positive integer), show advanced computation statistics ("true"
-   *          or "false)
-   */
-  public static void main(String[] args) {
-    int depth;
-    int repetitions;
-    boolean showLog;
-    try {
-      depth = Integer.parseInt(args[0]);
-      repetitions = Integer.parseInt(args[1]);
-      showLog = Boolean.parseBoolean(args[2]);
-    } catch (final Exception e) {
-      System.err.println("Arguments: <tree depth> <repetitions> <show log>");
-      return;
-    }
-
-    final MultiworkerUTS warmup = new MultiworkerUTS(64);
-    warmup.seed(19, depth - 2);
-
-    GLBcomputer glb;
-    try {
-      glb = GLBfactory.setupGLB();
-
-      final Configuration conf = glb.getConfiguration();
-
-      glb.compute(warmup, () -> new Sum(0), () -> new MultiworkerUTS(64));
-      System.out.println("UTS Depth: " + depth + " Places: " + conf.p
-          + " Work Unit: " + conf.n + " Concurrent Workers: " + conf.x
-          + " Random Steals: " + conf.w + " Lifeline Strategy: " + conf.z);
-
-      for (int i = 0; i < repetitions; i++) {
-        final MultiworkerUTS taskBag = new MultiworkerUTS(64);
-        taskBag.seed(19, depth);
-
-        final Sum s = glb.compute(taskBag, () -> new Sum(0),
-            () -> new MultiworkerUTS(64));
-        System.out.println("Run " + i + "/" + repetitions + ";" + s.sum + ";"
-            + glb.getLog().computationTime / 1e9 + ";");
-        if (showLog) {
-          glb.getLog().print(System.err);
-        }
-      }
-    } catch (final ReflectiveOperationException e) {
-
-      e.printStackTrace();
-    }
-
   }
 
 }

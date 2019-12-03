@@ -1,4 +1,4 @@
-/*
+/**
  *  This file is part of the Handy Tools for Distributed Computing project
  *  HanDist (https://github.com/handist)
  *
@@ -10,13 +10,12 @@
  *  (C) copyright CS29 Fine 2018-2019.
  */
 /**
- * Package containing two nearly identical implementations of the Unbalanced
- * Tree Search benchmark. Both are based on the implementation provided as an
- * example of the <a href="https://github.com/x10-lang/apgas">APGAS for Java</a>
- * library and have been adapted to fit the requirements of the GLB libraries we
- * provide.
+ * Package containing the source files of a parallel exact cover solver using
+ * Knuth's "<a href="https://arxiv.org/pdf/cs/0011047.pdf">Dancing Links</a>"
+ * data structure. As of now, only the N-Queens problem is implemented, but
+ * programmers should be able to adapt the code to model other problems.
  *
  * @author Patrick Finnerty
  *
  */
-package handist.glb.examples.uts;
+package handist.glb.examples.nqueens;

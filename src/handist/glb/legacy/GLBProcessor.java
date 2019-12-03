@@ -16,10 +16,11 @@ import java.io.Serializable;
 import handist.glb.util.Fold;
 
 /**
- * Computing service abstraction. Provides two methods to the programmer. Method
- * <em>compute</em> provides a distributed computation service. Method
- * {@link #getLogger()} provides information about the performance of the last
- * computation that took place.
+ * Computing service abstraction used as an indirection layer with the two
+ * implementing classes that exist in this package. Provides two methods to the
+ * programmer. Method <em>compute</em> provides a distributed computation
+ * service. Method {@link #getLogger()} provides information about the
+ * performance of the last computation that took place.
  * <p>
  * The work that can be handled by the GLBProcessor is an implementation of
  * interface {@link Bag}. More information about the restrictions on the kind of

@@ -27,14 +27,13 @@ import handist.glb.util.LifelineStrategy;
 
 /**
  * GenericGLBProcessor proposes a simple API to request for work to be computed
- * using the lifeline based global load balancing framework relying on APGAS.
+ * using the lifeline-based global load balancing scheme.
  * <p>
- * This is an implementation of {@link GLBProcessor} like
- * {@link LoopGLBProcessor}. However this implementation can handle any kind of
- * lifeline strategy defined by the user. An "hypercube" lifeline strategy
+ * This is an implementation of {@link GLBProcessor} that can handle any kind of
+ * user-defined lifeline strategy. An "hypercube" lifeline strategy
  * implementation (class {@link HypercubeStrategy}) is provided with the present
- * library but programmers can define their own strategies if they see fit by
- * implementing interface {@link LifelineStrategy}.
+ * library but programmers are free to design their own strategies if they see
+ * fit by implementing interface {@link LifelineStrategy}.
  * <p>
  * The programmer can submit his computation and an instance of the class used
  * to gather the result to method <em>compute</em>. This class will then
@@ -48,51 +47,57 @@ import handist.glb.util.LifelineStrategy;
  * An instance of this class cannot be obtained directly, the programmer will
  * have to use the {@link GLBProcessorFactory} factory methods to access the
  * distributed computation service. This is required as some setup has to be
- * done on each of the hosts in the distributed computation prior to the
- * computation actually beginning.
+ * done on each of the hosts of the distributed computation before the
+ * computation can actually beginning.
  *
  * @author Patrick Finnerty
  * @see HypercubeStrategy
- * @see LoopGLBProcessor
  */
 final class GenericGLBProcessor extends PlaceLocalObject
     implements GLBProcessor {
 
-  /** Logger object used to store the runtime of this place */
+  /**
+   * Logger object used to store the runtime event that occur on this instance
+   */
   private final Logger log;
 
   /**
-   * Member used for the places to send their log instance
+   * Member used for the remote places to send their log instance to. Is only
+   * used on the {@link GenericGLBProcessor} instance of Place 0.
    *
    * @see #getLogger()
    */
   private Logger[] logs;
 
-  /** Tasks bags to be processed */
+  /** Bag to be processed */
   @SuppressWarnings("rawtypes")
   private ConcurrentBagQueue bagsToDo;
 
   /**
    * Result instance local to this place. Used to gather the results from the
-   * {@link Bag}s processed by this place contained in {@link #bagsToDo}.
+   * {@link Bag} processed by this place contained in {@link #bagsToDo} when the
+   * computation ends. All the remote instances are then merged back into the
+   * instance of place 0.
+   *
+   * @see #result()
    */
   @SuppressWarnings("rawtypes")
   private Fold result;
 
-  /** Brings the APGAS place id to the class {@link LoopGLBProcessor} */
+  /** Brings the APGAS place id to the class */
   private final Place home = here();
 
   /**
    * Integer ({@code int}) id's of the places which are susceptible to establish
-   * their lifeline on this place. There is no particular meaning to the
-   * indices.
+   * their lifeline on this place. There is no particular meaning to the indices
+   * of the array in which this information is contained.
    */
   private final int incomingLifelines[];
 
   /**
    * Integer ({@code int}) id's of the places on which this place will establish
    * its lifelines when running out of work.There is no particular meaning to
-   * the indices.
+   * the indices on which this information is contained.
    */
   private final int lifelines[];
 
@@ -102,8 +107,8 @@ final class GenericGLBProcessor extends PlaceLocalObject
    * established, i.e. the keys are the content of array {@link #lifelines}. The
    * mapped boolean indicates if the lifeline is activated. For example if
    * {@code this} place is requiring work from place number 42, the mapping of
-   * key 42 in this map is to {@code true}. If place 42 is not required any work
-   * from this place, the mapped value is false.
+   * key 42 in this map is to {@code true}. If place 42 is not asked for work
+   * from this place, the key 42 is mapped to false.
    * <p>
    * Every potential lifeline of this place always have a mapping (either true
    * or false) in this map throughout the computation.

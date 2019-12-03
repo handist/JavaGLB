@@ -20,6 +20,10 @@ import handist.glb.util.Fold;
  * {@link BagQueue} is the class used to handle the {@link Bag}s to compute in
  * the {@link LoopGLBProcessor} implementation.
  * <p>
+ * Unlike its counterpart {@link ConcurrentBagQueue}, this class does not need
+ * to implement any particular protections against concurrent accesses as such
+ * accesses do not arise the circular loop lifeline strategy used in
+ * {@link LoopGLBProcessor}.
  *
  * @param <R>
  *          The result type of the handled computation
@@ -34,6 +38,12 @@ class BagQueue<R extends Fold<R> & Serializable> {
    * the programmer and remains unused.
    */
 
+  /** Array used to store the {@link Bag}s */
+  private Object bags[] = new Bag[16];
+
+  /** First free index in the bag queue */
+  private int last = 0;
+
   /**
    * Index of the last Bag that was processed. Is updated by
    * {@link #process(int)} as the computation takes place and the successive
@@ -41,18 +51,22 @@ class BagQueue<R extends Fold<R> & Serializable> {
    */
   private int lastPlaceWithWork = 0;
 
-  /** First free index in the bag queue */
-  private int last = 0;
-
-  /** Array used to store the {@link Bag}s */
-  private Object bags[] = new Bag[16];
+  /**
+   * Constructor
+   */
+  public BagQueue() {
+  }
 
   /**
-   * Doubles the capacity of the {@link #bags} array. Copying the contained
-   * {@link Bag}s to the new array.
+   * Removes all {@link Bag}s from the {@link BagQueue}. The {@link BagQueue} is
+   * empty when this method returns.
    */
-  private void grow() {
-    bags = Arrays.copyOf(bags, bags.length * 2);
+  public void clear() {
+    for (int i = 0; i < bags.length; i++) {
+      bags[i] = null;
+    }
+    last = 0;
+    lastPlaceWithWork = 0;
   }
 
   /**
@@ -88,15 +102,11 @@ class BagQueue<R extends Fold<R> & Serializable> {
   }
 
   /**
-   * Removes all {@link Bag}s from the {@link BagQueue}. The {@link BagQueue} is
-   * empty when this method returns.
+   * Doubles the capacity of the {@link #bags} array. Copying the contained
+   * {@link Bag}s to the new array.
    */
-  public void clear() {
-    for (int i = 0; i < bags.length; i++) {
-      bags[i] = null;
-    }
-    last = 0;
-    lastPlaceWithWork = 0;
+  private void grow() {
+    bags = Arrays.copyOf(bags, bags.length * 2);
   }
 
   /**
@@ -175,12 +185,6 @@ class BagQueue<R extends Fold<R> & Serializable> {
       }
     }
     return split;
-  }
-
-  /**
-   * Constructor
-   */
-  public BagQueue() {
   }
 
 }

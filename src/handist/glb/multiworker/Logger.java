@@ -23,6 +23,9 @@ import java.io.PrintStream;
  */
 public class Logger {
 
+  /** Elapsed time during initialization */
+  public long initializationTime;
+
   /** Elapsed computation time in nanosecond */
   public long computationTime;
 
@@ -59,34 +62,80 @@ public class Logger {
    *          the output stream on which the information is to be displayed
    */
   public void print(PrintStream out) {
+    out.println("Initialization time (s);" + initializationTime / 1e9);
     out.println("Computation time (s); " + computationTime / 1e9);
     out.println("Result gathering (s); " + resultGatheringTime / 1e9);
-    out.print(
-        "Place;IntraQueueSplit;IntraQueueFed;InterQueueSplit;InterQueueFed;"
+
+    // Print the general counters for each place
+    out.println(
+        "Place;Worker Spawns;IntraQueueSplit;IntraQueueFed;InterQueueSplit;InterQueueFed;"
             + "Rdm Steals Attempted;Rdm Steals Successes;"
             + "Rdm Steals Received;Rdm Steals Suffered;"
             + "Lifeline Steals Attempts;Lifeline Steals Success;"
             + "Lifeline Steals Received;Lifeline Steals Suffered;"
             + "Lifeline Thread Active(s);Lifeline Thread Holding(s);"
             + "Lifeline Thread Inactive(s);Lifeline Thread Woken Up;"
-            + "Worker Yielding;");
+            + "Information Sent; Information Received; Worker Yielding;");
+
+    for (final PlaceLogger l : placeLogs) {
+      out.println(l.place + ";" + l.workerSpawned + ";" + l.intraQueueSplit
+          + ";" + l.intraQueueFed + ";" + l.interQueueSplit + ";"
+          + l.interQueueFed + ";" + l.stealsAttempted + ";" + l.stealsSuccess
+          + ";" + l.stealsReceived + ";" + l.stealsSuffered + ";"
+          + l.lifelineStealsAttempted + ";" + l.lifelineStealsSuccess + ";"
+          + l.lifelineStealsReceived + ";" + l.lifelineStealsSuffered + ";"
+          + l.lifelineThreadActive / 1e9 + ";" + l.lifelineThreadHold / 1e9
+          + ";" + l.lifelineThreadInactive / 1e9 + ";" + l.lifelineThreadWokenUp
+          + ";" + l.communicationSent + ";" + l.communicationReceived + ";"
+          + l.yieldingTime / 1e9 + ";");
+
+    }
+    out.println();
+
+    // Print the time spent with all the workers on each place
+    out.println("WORKER DATA");
+    out.println("Nb of worker spawned");
+    out.print("Place;");
     for (int i = 0; i < placeLogs[0].time.length; i++) {
-      out.print(i + " workers(s);");
+      out.print(i + ";");
     }
     out.println();
 
     for (final PlaceLogger l : placeLogs) {
-      out.print(l.place + ";" + l.intraQueueSplit + ";" + l.intraQueueFed + ";"
-          + l.interQueueSplit + ";" + l.interQueueFed + ";" + l.stealsAttempted
-          + ";" + l.stealsSuccess + ";" + l.stealsReceived + ";"
-          + l.stealsSuffered + ";" + l.lifelineStealsAttempted + ";"
-          + l.lifelineStealsSuccess + ";" + l.lifelineStealsReceived + ";"
-          + l.lifelineStealsSuffered + ";" + l.lifelineThreadActive / 1e9 + ";"
-          + l.lifelineThreadHold / 1e9 + ";" + l.lifelineThreadInactive / 1e9
-          + ";" + l.lifelineThreadWokenUp + ";" + l.yieldingTime / 1e9 + ";");
-
+      out.print(l.place + ";");
       for (final long i : l.time) {
         out.print(i / 1e9 + ";");
+      }
+      out.println();
+    }
+
+    out.println("Nb of worker stealing");
+    out.print("Place;");
+    for (int i = 0; i < placeLogs[0].timeStealing.length; i++) {
+      out.print(i + ";");
+    }
+    out.println();
+    for (final PlaceLogger l : placeLogs) {
+      out.print(l.place + ";");
+      for (final long i : l.timeStealing) {
+        out.print(i / 1e9 + ";");
+      }
+      out.println();
+    }
+
+    out.println("TUNER DATA");
+    for (int i = 0; i < placeLogs.length; i++) {
+      out.print("Place " + i + ";Stamp;");
+      final PlaceLogger pl = placeLogs[i];
+      for (int j = 0; j < pl.tuningIndex; j++) {
+        final PlaceLogger.TunerStamp ts = pl.tuning[j];
+        out.print(ts.stamp / 1e9 + ";");
+      }
+      out.println();
+      out.print("Place " + i + ";Value;");
+      for (int j = 0; j < pl.tuningIndex; j++) {
+        final PlaceLogger.TunerStamp ts = pl.tuning[j];
+        out.print(ts.n + ";");
       }
       out.println();
     }
@@ -99,6 +148,8 @@ public class Logger {
    * specified as parameter. It is assumed the result gathering starts directly
    * after the computation.
    *
+   * @param initStart
+   *          initialization start in nanosecond
    * @param computationStart
    *          starting timestamp in nanosecond
    * @param computationEnd
@@ -108,8 +159,9 @@ public class Logger {
    * @param placeCount
    *          number of places in the system
    */
-  Logger(long computationStart, long computationEnd, long resultGatheringEnd,
-      int placeCount) {
+  Logger(long initStart, long computationStart, long computationEnd,
+      long resultGatheringEnd, int placeCount) {
+    initializationTime = computationStart - initStart;
     computationTime = computationEnd - computationStart;
     resultGatheringTime = resultGatheringEnd - computationEnd;
     placeLogs = new PlaceLogger[placeCount];

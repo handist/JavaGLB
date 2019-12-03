@@ -12,9 +12,10 @@
 package handist.glb.util;
 
 /**
- * Work stealing strategy for GLBProcessor. When a place runs out of work, the
- * {@link LifelineStrategy} implementation determines which places the thief
- * passively steals work from.Those places are called the 'lifelines'.
+ * Work stealing preferred channel for a GLBProcessor. When a place runs out of
+ * work, the {@link LifelineStrategy} implementation determines which places the
+ * thief passively steals work from. Those places are the called the
+ * 'lifelines'.
  * <p>
  * To be valid, a {@link LifelineStrategy} needs to satisfy several properties
  * that are easily explained in terms of graphs.
@@ -24,8 +25,11 @@ package handist.glb.util;
  * lifeline on {@code B} (A will steal from B). A valid {@link LifelineStrategy}
  * consists in a connected graph, i.e. there must be a path (in one or several
  * jumps) from each place to every other place. If this is not the case, some of
- * the places could starve work since they are not able to steal any work,
- * defeating the purpose of the load balancer.
+ * the places could starve since they could enter a state in which they will not
+ * able to steal any work, defeating the purpose of the load balancer.
+ * <p>
+ * One implementation of this interface is provided in the library and used as
+ * the default: {@link LifelineStrategy}.
  *
  * @author Patrick Finnerty
  *

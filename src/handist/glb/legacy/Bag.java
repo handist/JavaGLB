@@ -19,16 +19,15 @@ import handist.glb.util.Fold;
  * Abstraction of work to be processed by a {@link GLBProcessor}.
  * <p>
  * The requirements on the computation to be distributed are the following. We
- * see the computation as a large bag of small independent tasks that can be
- * performed in any order. In the Global Load Balancer routine, a certain number
- * of the tasks present in the bag are computed before checking the runtime and
- * performing load balance operations if necessary. The method responsible for
- * the computation of a set amount of tasks is method {@link #process(int)}.
- * Load balance operations consist in splitting ({@link #split()}) the bag into
- * two bags, each containing part of all the tasks present in the original bag
- * at time of splitting. One bag is then transfered to a remote host and
- * {@link #merge(Bag)} it back into the bag held by that remote host to be
- * computed.
+ * see the computation as a large bag containing some computation. In the Global
+ * Load Balancer scheme, a certain amount of the computation is performed before
+ * checking the runtime and performing load balance operations if necessary. The
+ * method responsible for the computation of a set amount of tasks is method
+ * {@link #process(int)}. Load balance operations consist in splitting
+ * ({@link #split()}) the bag into two instances, each containing half of the
+ * computation originally present in the bag at time the method was called. One
+ * bag is then transfered to a remote host and {@link #merge(Bag)} it back into
+ * the bag held by that remote host to be computed.
  * <p>
  * To ensure that tasks can be relocated from one host to another and be
  * executed successfully, computations that require some form of access to

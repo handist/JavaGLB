@@ -10,22 +10,29 @@
  *  (C) copyright CS29 Fine 2018-2019.
  */
 /**
- * Package containing the multi-worker Global Load Balancer. Class
- * {@link handist.glb.multiworker.Bag} is the computation abstraction and
- * presents the requirements for a successful computation.
- * <p>
- * Class {@link handist.glb.multiworker.Configuration} holds the tuning
+ * Package containing the multi-worker Global Load Balancer. The main components
+ * of the library are present in the following classes:
+ * <ul>
+ * <li>Class {@link handist.glb.multiworker.Bag} is the computation abstraction
+ * and presents the requirements for a successful computation.
+ * <li>Class {@link handist.glb.multiworker.Configuration} holds the tuning
  * capabilities of the load balance algorithm offered to the programmer.
- * <p>
- * Class {@link handist.glb.multiworker.GLBcomputer} implements the algorithm
- * with all its routines.
- * <p>
- * Class {@link handist.glb.multiworker.GLBfactory} provides the factory methods
- * to be use to obtain the distrbuted computation service.
- * <p>
- * Finally, classes {@link handist.glb.multiworker.Logger} and
+ * <li>Class {@link handist.glb.multiworker.GLBcomputer} implements the work
+ * stealing scheme.
+ * <li>Class {@link handist.glb.multiworker.GLBfactory} provides the factory
+ * methods to setup the distributed computation service.
+ * <li>Classes {@link handist.glb.multiworker.Logger} and
  * {@link handist.glb.multiworker.PlaceLogger} log the runtime information of
  * the distributed computation.
+ * </ul>
+ *
+ * Some additional mechanism are also integrated with the library. Interface
+ * {@link handist.glb.multiworker.Whisperer} allows the programmer to propagate
+ * information between the hosts. It is also possible for the programmer to
+ * dynamically change some parameters of the global load balancer by
+ * implementing the {@link handist.glb.multiworker.Tuner} interface. Included
+ * with the library is one implementation of such tuning mechanism in class
+ * {@link handist.glb.multiworker.Ntuner}.
  *
  * @author Patrick Finnerty
  *

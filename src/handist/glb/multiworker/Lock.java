@@ -19,8 +19,9 @@ import java.util.concurrent.Semaphore;
 /**
  * {@link ManagedBlocker} implementation relying on a Semaphore.
  * <p>
- * This class is used to make threads yield to one another in the
- * {@link GLBcomputer}.
+ * This class is used to make threads of the {@link ForkJoinPool} used in the
+ * APGAS runtime for Java yield to one another, thus guaranteeing the proper
+ * functioning of the {@link GLBcomputer}.
  *
  * @author Patrick Finnerty
  *

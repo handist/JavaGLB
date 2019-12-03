@@ -24,17 +24,18 @@ import handist.glb.util.Fold;
 
 /**
  * LoopGLBProcessor proposes a simple API to request for work to be computed
- * using the lifeline based global load balancing framework relying on APGAS.
+ * using the lifeline-based global load balancing scheme.
  * <p>
  * This implementation proposes a fixed lifeline strategy consisting of a
- * directed loop between all places. It was inspired by the example provided
- * with the APGAS for Java library apgas.examples.GlobalUTS.
+ * directed loop between all places. It is inspired by the example provided with
+ * the APGAS for Java library <a href=
+ * "https://github.com/x10-lang/apgas/blob/master/apgas.examples/src/apgas/examples/GlobalUTS.java">apgas.examples.GlobalUTS</a>.
  * <p>
  * There are no tuning options available for the lifeline strategy implemented
- * by this class. For other kinds of lifeline strategies, the programmer can use
- * the class {@link GenericGLBProcessor}. Other strategies necessarily imply
- * several lifelines per place need added protection that the
- * {@link LoopGLBProcessor} cannot handle.
+ * by this class. Strategies other than the directed loop necessarily imply
+ * several lifelines per place, which requires some added protection that the
+ * {@link LoopGLBProcessor} cannot handle. For other kinds of lifeline
+ * strategies, the programmer can use the class {@link GenericGLBProcessor}
  *
  * @author Patrick Finnerty
  * @see GenericGLBProcessor

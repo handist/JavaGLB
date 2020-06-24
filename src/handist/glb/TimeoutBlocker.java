@@ -1,7 +1,7 @@
 /**
  *
  */
-package handist.glb.multiworker;
+package handist.glb;
 
 import java.io.Serializable;
 import java.util.concurrent.ForkJoinPool;
@@ -78,7 +78,7 @@ public class TimeoutBlocker implements Serializable, ManagedBlocker {
    * method {@link System#nanoTime()}
    *
    * @param stamp
-   *          timestamp until which {@link System#nanoTime()}
+   *                timestamp until which {@link System#nanoTime()}
    */
   public void setNextWakeup(long stamp) {
     nextWakeUpTime = stamp;

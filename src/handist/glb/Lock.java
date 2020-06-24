@@ -9,7 +9,7 @@
  *
  *  (C) copyright CS29 Fine 2018-2019.
  */
-package handist.glb.multiworker;
+package handist.glb;
 
 import java.io.Serializable;
 import java.util.concurrent.ForkJoinPool;

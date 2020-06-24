@@ -17,10 +17,10 @@ import java.security.DigestException;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 
-import handist.glb.multiworker.Bag;
-import handist.glb.multiworker.Configuration;
-import handist.glb.multiworker.GLBcomputer;
-import handist.glb.multiworker.GLBfactory;
+import handist.glb.Bag;
+import handist.glb.Configuration;
+import handist.glb.GLBcomputer;
+import handist.glb.GLBfactory;
 
 /**
  * Implementation of an Unbalanced Tree Search computation.
@@ -61,9 +61,9 @@ public class MultiworkerUTS implements Bag<MultiworkerUTS, Sum>, Serializable {
    * multiworker Global Load Balancer.
    *
    * @param args
-   *          tree depth (positive integer), number of repetitions to perform
-   *          (positive integer), show advanced computation statistics ("true"
-   *          or "false)
+   *               tree depth (positive integer), number of repetitions to
+   *               perform (positive integer), show advanced computation
+   *               statistics ("true" or "false)
    */
   public static void main(String[] args) {
     int depth;
@@ -160,7 +160,7 @@ public class MultiworkerUTS implements Bag<MultiworkerUTS, Sum>, Serializable {
    * arrays used in the implementation.
    *
    * @param initialSize
-   *          depth of the tree exploration
+   *                      depth of the tree exploration
    */
   public MultiworkerUTS(int initialSize) {
     hash = new byte[initialSize * 20 + 4];
@@ -175,12 +175,14 @@ public class MultiworkerUTS implements Bag<MultiworkerUTS, Sum>, Serializable {
   /**
    * Generates the seed and the children nodes of node being currently explored.
    *
-   * @param d
-   *          maximum depth of the tree to explore
-   * @param md
-   *          the {@link MessageDigest} used to generate the tree seed
+   * @param  d
+   *                           maximum depth of the tree to explore
+   * @param  md
+   *                           the {@link MessageDigest} used to generate the
+   *                           tree seed
    * @throws DigestException
-   *           if the {@link MessageDigest} throws an exception when called
+   *                           if the {@link MessageDigest} throws an exception
+   *                           when called
    */
   private void digest(int d, MessageDigest md) throws DigestException {
     // Creates more space in the arrays if need be
@@ -221,10 +223,12 @@ public class MultiworkerUTS implements Bag<MultiworkerUTS, Sum>, Serializable {
   /**
    * Explores one node on the tree and returns.
    *
-   * @param md
-   *          the {@link MessageDigest} instance to be used to generate the tree
+   * @param  md
+   *                           the {@link MessageDigest} instance to be used to
+   *                           generate the tree
    * @throws DigestException
-   *           if the provided {@link MessageDigest} throws an exception
+   *                           if the provided {@link MessageDigest} throws an
+   *                           exception
    */
   public void expand(MessageDigest md) throws DigestException {
     final int top = currentDepth - 1;
@@ -321,7 +325,7 @@ public class MultiworkerUTS implements Bag<MultiworkerUTS, Sum>, Serializable {
    * Prints the current status of this instance to the provided output stream.
    *
    * @param out
-   *          output to which the state of the tree needs to be written to
+   *              output to which the state of the tree needs to be written to
    */
   public void print(PrintStream out) {
     out.println(String.format("Index :  %1$2d", currentDepth));
@@ -379,9 +383,9 @@ public class MultiworkerUTS implements Bag<MultiworkerUTS, Sum>, Serializable {
    * is started.
    *
    * @param seed
-   *          an integer used as seed
+   *                an integer used as seed
    * @param depth
-   *          maximum depth of the intended exploration
+   *                maximum depth of the intended exploration
    */
   public void seed(int seed, int depth) {
     try {

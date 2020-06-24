@@ -13,10 +13,10 @@ package handist.glb.examples.nqueens;
 
 import java.util.LinkedList;
 
+import handist.glb.GLBcomputer;
+import handist.glb.GLBfactory;
+import handist.glb.Logger;
 import handist.glb.examples.pentomino.Answer;
-import handist.glb.multiworker.GLBcomputer;
-import handist.glb.multiworker.GLBfactory;
-import handist.glb.multiworker.Logger;
 
 /**
  * Launcher of a multithreaded and distributed computation for the N-Queens
@@ -37,8 +37,8 @@ public class ParallelNQueens {
    * specified, no warm-up will be performed.
    *
    * @param args
-   *          size of the problem and number of repetitions. Optionally the size
-   *          of the warm-up to perform.
+   *               size of the problem and number of repetitions. Optionally the
+   *               size of the warm-up to perform.
    */
   public static void main(String[] args) {
     int size;

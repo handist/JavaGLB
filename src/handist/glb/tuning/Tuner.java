@@ -9,11 +9,11 @@
  *
  *  (C) copyright CS29 Fine 2018-2019.
  */
-package handist.glb.multiworker.tuning;
+package handist.glb.tuning;
 
-import handist.glb.multiworker.Configuration;
-import handist.glb.multiworker.GLBcomputer;
-import handist.glb.multiworker.PlaceLogger;
+import handist.glb.Configuration;
+import handist.glb.GLBcomputer;
+import handist.glb.PlaceLogger;
 
 /**
  * Interface {@link Tuner} presents the method required for a dynamic parameter
@@ -39,13 +39,13 @@ public interface Tuner {
    * timestamps or other information) at the time the place starting working
    * again.
    *
-   * @param l
-   *          the {@link PlaceLogger} instance which contains the runtime
-   *          information about the place
-   * @param c
-   *          the {@link Configuration} instance used by the GLB
-   * @return the timestamp at which the method was called using
-   *         {@link System#nanoTime()}
+   * @param  l
+   *             the {@link PlaceLogger} instance which contains the runtime
+   *             information about the place
+   * @param  c
+   *             the {@link Configuration} instance used by the GLB
+   * @return   the timestamp at which the method was called using
+   *           {@link System#nanoTime()}
    */
   public long placeLaunched(PlaceLogger l, Configuration c);
 
@@ -62,13 +62,13 @@ public interface Tuner {
    * runs the tuner until it is time to run the tuner again.
    *
    *
-   * @param l
-   *          contains information about the runtime of this place
-   * @param c
-   *          instance in which modifications to the parameters of the GLB can
-   *          be registered
-   * @return the timestamp at which the method was called using
-   *         {@link System#nanoTime()}
+   * @param  l
+   *             contains information about the runtime of this place
+   * @param  c
+   *             instance in which modifications to the parameters of the GLB
+   *             can be registered
+   * @return   the timestamp at which the method was called using
+   *           {@link System#nanoTime()}
    */
   public long tune(PlaceLogger l, Configuration c);
 

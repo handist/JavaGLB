@@ -1,7 +1,7 @@
 /**
  *
  */
-package handist.glb.multiworker;
+package handist.glb;
 
 import java.io.Serializable;
 
@@ -27,12 +27,13 @@ import handist.glb.util.Fold;
  * bound found so far (an Integer) is communicated to hosts of the distributed
  * computation by the {@link TspWhisperer} implementation of this interface.
  *
- * @author Patrick Finnerty
- * @param <I>
- *          Type of the information which is carried from a java process to an
- *          other
- * @param <R>
- *          Type of the result object which is shared between workers on a host
+ * @author     Patrick Finnerty
+ * @param  <I>
+ *               Type of the information which is carried from a java process to
+ *               an other
+ * @param  <R>
+ *               Type of the result object which is shared between workers on a
+ *               host
  *
  */
 public interface Whisperer<I extends Serializable, R extends Fold<R> & Serializable> {
@@ -42,22 +43,23 @@ public interface Whisperer<I extends Serializable, R extends Fold<R> & Serializa
    * worth sharing with the other java processes taking part in the distributed
    * computation.
    *
-   * @param source
-   *          shared object from which the information (if any) would come from
+   * @param  source
+   *                  shared object from which the information (if any) would
+   *                  come from
    *
-   * @return true is the instance has information to share with other hosts,
-   *         false otherwise
+   * @return        true is the instance has information to share with other
+   *                hosts, false otherwise
    */
   public boolean hasValueToShare(R source);
 
   /**
    * Gives the information that is worth sharing with other hosts.
    *
-   * @param source
-   *          shared object instance from which the information is going to come
-   *          from
-   * @return instance of class I containing the information which will be sent
-   *         to other compute nodes
+   * @param  source
+   *                  shared object instance from which the information is going
+   *                  to come from
+   * @return        instance of class I containing the information which will be
+   *                sent to other compute nodes
    */
   public I getInformation(R source);
 
@@ -66,10 +68,11 @@ public interface Whisperer<I extends Serializable, R extends Fold<R> & Serializa
    * instance.
    *
    * @param info
-   *          the information to integrate in to this local instance.
+   *                      the information to integrate in to this local
+   *                      instance.
    * @param destination
-   *          shared object in which the information is destined to be
-   *          integrated into
+   *                      shared object in which the information is destined to
+   *                      be integrated into
    */
   public void integrateInformation(I info, R destination);
 

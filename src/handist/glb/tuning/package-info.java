@@ -15,10 +15,10 @@
  * <p>
  * It is also possible for the programmer to dynamically change some parameters
  * of the global load balancer by implementing the
- * {@link handist.glb.multiworker.tuning.Tuner} interface. Some implementations
- * are provided in this package.
+ * {@link handist.glb.tuning.Tuner} interface. Some implementations are provided
+ * in this package.
  *
  * @author Patrick Finnerty
  *
  */
-package handist.glb.multiworker.tuning;
+package handist.glb.tuning;

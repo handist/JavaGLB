@@ -11,9 +11,9 @@
  */
 package handist.glb.examples.pentomino;
 
+import handist.glb.GLBcomputer;
+import handist.glb.GLBfactory;
 import handist.glb.examples.pentomino.Pentomino.PentominoType;
-import handist.glb.multiworker.GLBcomputer;
-import handist.glb.multiworker.GLBfactory;
 
 /**
  * Launcher for a parallel Pentomino exploration
@@ -28,8 +28,8 @@ public class ParallelPentomino {
    * multithreaded global load balancer.
    *
    * @param args
-   *          <em>width</em> and <em>height</em> of the board to use and whether
-   *          symmetries in the problem should be removed (boolean)
+   *               <em>width</em> and <em>height</em> of the board to use and
+   *               whether symmetries in the problem should be removed (boolean)
    */
   public static void main(String[] args) {
     int width;

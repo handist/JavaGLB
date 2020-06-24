@@ -9,12 +9,12 @@
  *
  *  (C) copyright CS29 Fine 2018-2019.
  */
-package handist.glb.multiworker;
+package handist.glb;
 
 import static apgas.Constructs.*;
 
 import apgas.util.PlaceLocalObject;
-import handist.glb.multiworker.tuning.Tuner;
+import handist.glb.tuning.Tuner;
 import handist.glb.util.LifelineStrategy;
 
 /**
@@ -38,10 +38,11 @@ public final class GLBfactory {
    * setting the various environment variables. The details of the options
    * available are presented in class {@link Configuration}.
    *
-   * @return computing service instance
+   * @return                              computing service instance
    * @throws ReflectiveOperationException
-   *           if the class to be used for
-   *           {@link Configuration#GLBM_LIFELINESTRATEGY} could not be used
+   *                                        if the class to be used for
+   *                                        {@link Configuration#GLBM_LIFELINESTRATEGY}
+   *                                        could not be used
    */
   public static GLBcomputer setupGLB() throws ReflectiveOperationException {
     final int workUnit = Integer.parseInt(System.getProperty(

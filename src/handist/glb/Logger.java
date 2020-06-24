@@ -9,7 +9,7 @@
  *
  *  (C) copyright CS29 Fine 2018-2019.
  */
-package handist.glb.multiworker;
+package handist.glb;
 
 import java.io.PrintStream;
 
@@ -43,8 +43,8 @@ public class Logger {
    * to propagate across all places).
    *
    * @param l
-   *          the {@link PlaceLogger} instance of a certain place in the
-   *          computation.
+   *            the {@link PlaceLogger} instance of a certain place in the
+   *            computation.
    */
   synchronized void addPlaceLogger(PlaceLogger l) {
     final long loggerElapsed = l.lastEventTimeStamp - l.startTimeStamp;
@@ -59,7 +59,7 @@ public class Logger {
    * in a <em>CSV</em> format.
    *
    * @param out
-   *          the output stream on which the information is to be displayed
+   *              the output stream on which the information is to be displayed
    */
   public void print(PrintStream out) {
     out.println("Initialization time (s);" + initializationTime / 1e9);
@@ -149,15 +149,15 @@ public class Logger {
    * after the computation.
    *
    * @param initStart
-   *          initialization start in nanosecond
+   *                             initialization start in nanosecond
    * @param computationStart
-   *          starting timestamp in nanosecond
+   *                             starting timestamp in nanosecond
    * @param computationEnd
-   *          end of computation timestamp in nanosecond
+   *                             end of computation timestamp in nanosecond
    * @param resultGatheringEnd
-   *          end of result gathring timestamp in nanosecond
+   *                             end of result gathring timestamp in nanosecond
    * @param placeCount
-   *          number of places in the system
+   *                             number of places in the system
    */
   Logger(long initStart, long computationStart, long computationEnd,
       long resultGatheringEnd, int placeCount) {

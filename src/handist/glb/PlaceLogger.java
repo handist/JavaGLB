@@ -9,7 +9,7 @@
  *
  *  (C) copyright CS29 Fine 2018-2019.
  */
-package handist.glb.multiworker;
+package handist.glb;
 
 import java.io.PrintStream;
 import java.io.Serializable;
@@ -25,7 +25,7 @@ import java.util.concurrent.atomic.AtomicLong;
  * {@link Logger} instance.
  *
  * @author Patrick Finnerty
- * @see Logger
+ * @see    Logger
  */
 public class PlaceLogger implements Serializable {
 
@@ -50,9 +50,9 @@ public class PlaceLogger implements Serializable {
      * Constructor
      *
      * @param timestamp
-     *          stamp at which the value was changed
+     *                    stamp at which the value was changed
      * @param value
-     *          new value chosen by the tuner
+     *                    new value chosen by the tuner
      */
     public TunerStamp(long timestamp, int value) {
       stamp = timestamp;
@@ -226,11 +226,12 @@ public class PlaceLogger implements Serializable {
    * Sets up a PlaceLogger for runtime tracking.
    *
    * @param placeConfig
-   *          Configuration instance containing the information of the
-   *          parameters used for the {@link GLBcomputer} during the computation
+   *                      Configuration instance containing the information of
+   *                      the parameters used for the {@link GLBcomputer} during
+   *                      the computation
    * @param placeId
-   *          integer identifier of the place this PlaceLogger instance is
-   *          recording activity for
+   *                      integer identifier of the place this PlaceLogger
+   *                      instance is recording activity for
    */
   public PlaceLogger(Configuration placeConfig, int placeId) {
     place = placeId;
@@ -294,9 +295,9 @@ public class PlaceLogger implements Serializable {
    * To be called when the tuner changes the value of {@link Configuration#n}.
    *
    * @param timestamp
-   *          time stamp of when the modification was done
+   *                    time stamp of when the modification was done
    * @param newValue
-   *          new value decided by the tuner
+   *                    new value decided by the tuner
    */
   public void NvalueTuned(long timestamp, int newValue) {
     if (tuning.length == tuningIndex) {
@@ -309,7 +310,7 @@ public class PlaceLogger implements Serializable {
    * Prints some basic information on the output specified as parameter
    *
    * @param out
-   *          the output on which the information is going to be displayed
+   *              the output on which the information is going to be displayed
    */
   public void print(PrintStream out) {
     out.println("PLACE " + place);

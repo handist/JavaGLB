@@ -17,7 +17,7 @@ import java.util.Arrays;
 import java.util.Deque;
 import java.util.LinkedList;
 
-import handist.glb.multiworker.Bag;
+import handist.glb.Bag;
 
 /**
  * TSP implementation following the global load balancer's {@link Bag}
@@ -35,8 +35,8 @@ public class TspBag implements Bag<TspBag, TspResult>, Serializable {
    * Launches a sequential execution of the TSP
    *
    * @param args
-   *          path to the input problem file, (optionally) an integer to use
-   *          only a subset of the problem given as first parameter
+   *               path to the input problem file, (optionally) an integer to
+   *               use only a subset of the problem given as first parameter
    */
   public static void main(String[] args) {
     TspProblem problem;
@@ -160,7 +160,7 @@ public class TspBag implements Bag<TspBag, TspResult>, Serializable {
    * minimum size needed and the transient terms will not be initialized
    *
    * @param nbCities
-   *          of cities in the current TSP problem
+   *                   of cities in the current TSP problem
    */
   protected TspBag(int nbCities) {
     // Initialization to avoid warning on non initialized final members
@@ -183,7 +183,7 @@ public class TspBag implements Bag<TspBag, TspResult>, Serializable {
    * Initializes an empty bag with the given problem.
    *
    * @param problem
-   *          the problem considered
+   *                  the problem considered
    */
   public TspBag(TspProblem problem) {
     nodeCounter = 0;
@@ -220,8 +220,8 @@ public class TspBag implements Bag<TspBag, TspResult>, Serializable {
    * Performs one step in the current exploration.
    *
    * @param shared
-   *          the shared object between workers in which the optimum solution
-   *          found so far is stored
+   *                 the shared object between workers in which the optimum
+   *                 solution found so far is stored
    */
   void exploreOne(TspResult shared) {
     nodeCounter++;
@@ -255,8 +255,8 @@ public class TspBag implements Bag<TspBag, TspResult>, Serializable {
     final NextNode next = candidates[low[index - 1]]; // next is the candidate
 
     final int nextCost = cost[index - 1] + next.cost;
-    if (nextCost
-        + BOUND_FUNCTION[TOTAL_NB_CITIES - index] <= shared.bestSolution) {
+    if (nextCost + BOUND_FUNCTION[TOTAL_NB_CITIES - index]
+        <= shared.bestSolution) {
       // We may find a better solution, we keep exploring with that node
 
       cost[index] = nextCost;
@@ -377,7 +377,8 @@ public class TspBag implements Bag<TspBag, TspResult>, Serializable {
    * instance.
    *
    * @param exploration
-   *          partial exploration to be continued in the current instance
+   *                      partial exploration to be continued in the current
+   *                      instance
    */
   private void restore(TspBag exploration) {
     cost = exploration.cost;
@@ -392,7 +393,7 @@ public class TspBag implements Bag<TspBag, TspResult>, Serializable {
    * Computes the whole TSP sequentially
    *
    * @param result
-   *          the instance into which the result is going to be stored
+   *                 the instance into which the result is going to be stored
    */
   public void run(final TspResult result) {
     while (!isEmpty()) {
@@ -422,10 +423,10 @@ public class TspBag implements Bag<TspBag, TspResult>, Serializable {
    * Split the current exploration and returns a new TspBag instance containing
    * the work
    *
-   * @param takeAll
-   *          In the case the exploration cannot be split, indicates if all the
-   *          instance contents should be given away.
-   * @return a new TspBag instance containing some work
+   * @param  takeAll
+   *                   In the case the exploration cannot be split, indicates if
+   *                   all the instance contents should be given away.
+   * @return         a new TspBag instance containing some work
    */
   public TspBag splitCurrentExploration(boolean takeAll) {
     if (index <= 0 || (!isSplittable() && !takeAll) || isEmpty()) {

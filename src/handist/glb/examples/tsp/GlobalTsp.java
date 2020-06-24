@@ -11,8 +11,8 @@
  */
 package handist.glb.examples.tsp;
 
-import handist.glb.multiworker.GLBcomputer;
-import handist.glb.multiworker.GLBfactory;
+import handist.glb.GLBcomputer;
+import handist.glb.GLBfactory;
 
 /**
  * Launcher for a distributed computation of the TSP using the global load
@@ -28,10 +28,10 @@ public class GlobalTsp {
    * global load balancer
    *
    * @param args
-   *          file from which to read the problem from. Optionally, the subset
-   *          number of cities of the matrix to use (by default all) and whether
-   *          to use the whisper mechanism to share the bound between hosts
-   *          (true by default).
+   *               file from which to read the problem from. Optionally, the
+   *               subset number of cities of the matrix to use (by default all)
+   *               and whether to use the whisper mechanism to share the bound
+   *               between hosts (true by default).
    */
   public static void main(String[] args) {
     // Argument parsing

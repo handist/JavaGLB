@@ -13,12 +13,12 @@ package handist.glb.examples.tsp;
 
 import java.io.Serializable;
 
-import handist.glb.multiworker.Whisperer;
+import handist.glb.Whisperer;
 
 /**
  * Ad-hoc developed class that whose responsibility is to communicate the best
  * bound found locally with remote hosts.
- * 
+ *
  * @author Patrick Finnerty
  *
  */

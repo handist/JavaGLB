@@ -8,8 +8,8 @@ import java.util.Arrays;
 import java.util.Deque;
 import java.util.LinkedList;
 
+import handist.glb.Bag;
 import handist.glb.examples.pentomino.Answer;
-import handist.glb.multiworker.Bag;
 
 /**
  * @author Patrick Finnerty
@@ -28,7 +28,7 @@ public class BitNQueens implements Bag<BitNQueens, Answer>, Serializable {
    * the specified size.
    *
    * @param args
-   *          one argument: size of the problem
+   *               one argument: size of the problem
    */
   public static void main(String args[]) {
     int n = 5;
@@ -110,7 +110,7 @@ public class BitNQueens implements Bag<BitNQueens, Answer>, Serializable {
    * Constructor for the BitNQueens
    *
    * @param boardSize
-   *          width of the board considered
+   *                    width of the board considered
    */
   public BitNQueens(int boardSize) {
     N = boardSize;
@@ -185,7 +185,7 @@ public class BitNQueens implements Bag<BitNQueens, Answer>, Serializable {
    * continue the exploration of the provided instance
    *
    * @param poll
-   *          instance whose exploration is to continue
+   *               instance whose exploration is to continue
    */
   private void restore(BitNQueens c) {
     stackAntiDiagonal = c.stackAntiDiagonal;

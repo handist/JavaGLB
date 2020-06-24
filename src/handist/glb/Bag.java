@@ -9,7 +9,7 @@
  *
  *  (C) copyright CS29 Fine 2018-2019.
  */
-package handist.glb.multiworker;
+package handist.glb;
 
 import java.io.Serializable;
 
@@ -81,18 +81,18 @@ import handist.glb.util.Fold;
  * </pre>
  *
  *
- * @param <B>
- *          Type parameter used for the return type of method
- *          {@link #split(boolean)} and the parameter type of method
- *          {@link #merge(Bag)}. The programmer should choose the implementing
- *          class itself as first parameter.
- * @param <R>
- *          Type parameter used for method {@link #submit(Fold)}. The chosen
- *          class is "so to speak" the result produced by the implemented
- *          distributed computation. As such it is required to implement the
- *          {@link Fold} interface.
- * @author Patrick Finnerty
- * @see Fold
+ * @param  <B>
+ *               Type parameter used for the return type of method
+ *               {@link #split(boolean)} and the parameter type of method
+ *               {@link #merge(Bag)}. The programmer should choose the
+ *               implementing class itself as first parameter.
+ * @param  <R>
+ *               Type parameter used for method {@link #submit(Fold)}. The
+ *               chosen class is "so to speak" the result produced by the
+ *               implemented distributed computation. As such it is required to
+ *               implement the {@link Fold} interface.
+ * @author     Patrick Finnerty
+ * @see        Fold
  *
  */
 public interface Bag<B extends Bag<B, R> & Serializable, R extends Fold<R> & Serializable> {
@@ -120,7 +120,7 @@ public interface Bag<B extends Bag<B, R> & Serializable, R extends Fold<R> & Ser
    * Merges the content of the bag given as parameter into this instance.
    *
    * @param b
-   *          the bag to be merged into this instance
+   *            the bag to be merged into this instance
    */
   public void merge(B b);
 
@@ -136,10 +136,10 @@ public interface Bag<B extends Bag<B, R> & Serializable, R extends Fold<R> & Ser
    * particular protection on that object.
    *
    * @param workAmount
-   *          the amount of computation to be done
+   *                       the amount of computation to be done
    * @param sharedObject
-   *          instance shared between workers of one place through which some
-   *          data between workers can be shared
+   *                       instance shared between workers of one place through
+   *                       which some data between workers can be shared
    */
   public void process(int workAmount, R sharedObject);
 
@@ -157,11 +157,12 @@ public interface Bag<B extends Bag<B, R> & Serializable, R extends Fold<R> & Ser
    * empty bag instance.
    *
    *
-   * @param takeAll
-   *          indicates if the caller wants the whole content of this instance
-   *          in the event it cannot be split. Can be ignored by the programmer
-   *          in other situations.
-   * @return a fragment of the computation held in this bag in a new instance
+   * @param  takeAll
+   *                   indicates if the caller wants the whole content of this
+   *                   instance in the event it cannot be split. Can be ignored
+   *                   by the programmer in other situations.
+   * @return         a fragment of the computation held in this bag in a new
+   *                 instance
    */
   public B split(boolean takeAll);
 
@@ -170,7 +171,7 @@ public interface Bag<B extends Bag<B, R> & Serializable, R extends Fold<R> & Ser
    * placed in the given result R instance.
    *
    * @param r
-   *          the instance in which the partial result is to be stored
+   *            the instance in which the partial result is to be stored
    */
   public void submit(R r);
 

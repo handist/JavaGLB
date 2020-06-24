@@ -3,10 +3,10 @@
  */
 package handist.glb.examples.nqueens;
 
+import handist.glb.GLBcomputer;
+import handist.glb.GLBfactory;
+import handist.glb.Logger;
 import handist.glb.examples.pentomino.Answer;
-import handist.glb.multiworker.GLBcomputer;
-import handist.glb.multiworker.GLBfactory;
-import handist.glb.multiworker.Logger;
 
 /**
  * Launcher for a parallel exploration of the N-Queens problem using the global
@@ -21,7 +21,7 @@ public class ParallelBitNQueens {
    * Launches a parallel exploration of the N-Queens problem
    *
    * @param args
-   *          size of the problem
+   *               size of the problem
    */
   public static void main(String[] args) {
     int n = 5;

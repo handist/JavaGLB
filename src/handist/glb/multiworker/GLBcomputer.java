@@ -24,6 +24,7 @@ import java.util.concurrent.atomic.AtomicIntegerArray;
 import apgas.GlobalRuntime;
 import apgas.Place;
 import apgas.util.PlaceLocalObject;
+import handist.glb.multiworker.tuning.Tuner;
 import handist.glb.util.Fold;
 import handist.glb.util.LifelineStrategy;
 import handist.glb.util.SerializableSupplier;

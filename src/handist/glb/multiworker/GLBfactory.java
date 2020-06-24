@@ -14,6 +14,7 @@ package handist.glb.multiworker;
 import static apgas.Constructs.*;
 
 import apgas.util.PlaceLocalObject;
+import handist.glb.multiworker.tuning.Tuner;
 import handist.glb.util.LifelineStrategy;
 
 /**

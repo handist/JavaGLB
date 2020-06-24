@@ -9,9 +9,13 @@
  *
  *  (C) copyright CS29 Fine 2018-2019.
  */
-package handist.glb.multiworker;
+package handist.glb.multiworker.tuning;
 
 import java.io.Serializable;
+
+import handist.glb.multiworker.Configuration;
+import handist.glb.multiworker.GLBcomputer;
+import handist.glb.multiworker.PlaceLogger;
 
 /**
  * Tuner for parameter {@link Configuration#n} of the multithreaded global load

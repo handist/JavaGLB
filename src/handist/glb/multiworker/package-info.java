@@ -30,9 +30,9 @@
  * {@link handist.glb.multiworker.Whisperer} allows the programmer to propagate
  * information between the hosts. It is also possible for the programmer to
  * dynamically change some parameters of the global load balancer by
- * implementing the {@link handist.glb.multiworker.Tuner} interface. Included
+ * implementing the {@link handist.glb.multiworker.tuning.Tuner} interface. Included
  * with the library is one implementation of such tuning mechanism in class
- * {@link handist.glb.multiworker.Ntuner}.
+ * {@link handist.glb.multiworker.tuning.Ntuner}.
  *
  * @author Patrick Finnerty
  *

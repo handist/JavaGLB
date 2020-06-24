@@ -9,7 +9,11 @@
  *
  *  (C) copyright CS29 Fine 2018-2019.
  */
-package handist.glb.multiworker;
+package handist.glb.multiworker.tuning;
+
+import handist.glb.multiworker.Configuration;
+import handist.glb.multiworker.GLBcomputer;
+import handist.glb.multiworker.PlaceLogger;
 
 /**
  * Interface {@link Tuner} presents the method required for a dynamic parameter

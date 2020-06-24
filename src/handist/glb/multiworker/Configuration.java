@@ -13,6 +13,8 @@ package handist.glb.multiworker;
 
 import java.io.Serializable;
 
+import handist.glb.multiworker.tuning.Tuner;
+
 /**
  * Configuration class holds the environment variables that can be used to tune
  * the multiworker Global Load Balancer. It also contains the settings that are

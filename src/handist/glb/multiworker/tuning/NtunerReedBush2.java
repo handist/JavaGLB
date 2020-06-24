@@ -9,9 +9,13 @@
  *
  *  (C) copyright CS29 Fine 2018-2019.
  */
-package handist.glb.multiworker;
+package handist.glb.multiworker.tuning;
 
 import java.io.Serializable;
+
+import handist.glb.multiworker.Configuration;
+import handist.glb.multiworker.GLBcomputer;
+import handist.glb.multiworker.PlaceLogger;
 
 /**
  * Tuner for parameter {@link Configuration#n} of the multithreaded global load
@@ -49,7 +53,7 @@ import java.io.Serializable;
  * {@link PlaceLogger} in its own members. When the
  * {@link #tune(PlaceLogger, Configuration)} method is called, the difference
  * between the current (new) values of the {@link PlaceLogger} is computed. This
- * makes the {@link NtunerReedBush} make its decision on the most recent logger
+ * makes the {@link NtunerReedBush2} make its decision on the most recent logger
  * data.
  *
  * <h2>Value increase and decrease</h2> When the decision is made to decrease
@@ -64,10 +68,13 @@ import java.io.Serializable;
  * @author Patrick Finnerty
  *
  */
-public class NtunerReedBush implements Tuner, Serializable {
+public class NtunerReedBush2 implements Tuner, Serializable {
 
   /** Serial Version UID */
   private static final long serialVersionUID = -2434717487578453824L;
+
+  private static final int NOINFOCYCLELIMIT = Integer
+      .parseInt(System.getProperty("glb.rb3", "10"));;
 
   /**
    * Value of member {@link PlaceLogger#interQueueFed} the last time the tuner
@@ -180,17 +187,25 @@ public class NtunerReedBush implements Tuner, Serializable {
     int newValue = oldValue;
     if (nTooSmall && nTooLarge) {
       // Contradiction, wait for more
-      System.err.println(
-          "Place " + l.place + ";" + consecutiveNoCriteriaRaised + ";");
       consecutiveNoCriteriaRaised = 0;
       lastDecision = 0;
     } else if (!nTooSmall && !nTooLarge) {
       // All seem well, neither criteria triggered.
       consecutiveNoCriteriaRaised++;
       lastDecision = 0;
+
+      // If no criteria was raised for enough consecutive times, increase the
+      // grain
+      if (consecutiveNoCriteriaRaised >= NOINFOCYCLELIMIT) {
+        newValue *= 2;
+        // Handle the overflow risk
+        if (newValue <= 0) {
+          newValue = Integer.MAX_VALUE;
+        }
+
+        consecutiveNoCriteriaRaised = 0;
+      }
     } else if (nTooSmall) {
-      System.err.println(
-          "Place " + l.place + ";" + consecutiveNoCriteriaRaised + ";");
       consecutiveNoCriteriaRaised = 0;
       if (lastDecision == 1) {
         // Multiply n by 2
@@ -204,8 +219,6 @@ public class NtunerReedBush implements Tuner, Serializable {
         lastDecision = 1;
       }
     } else if (nTooLarge) {
-      System.err.println(
-          "Place " + l.place + ";" + consecutiveNoCriteriaRaised + ";");
       consecutiveNoCriteriaRaised = 0;
       if (lastDecision < 0) {
         // Divide n by 2, add 1 to be sure it doesn't turn to 0

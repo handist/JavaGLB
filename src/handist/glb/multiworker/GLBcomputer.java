@@ -87,9 +87,9 @@ public class GLBcomputer extends PlaceLocalObject {
      * {@link Bag}. This is used to identify the workers
      *
      * @param id
-     *          identifier of the worker that holds the bag
+     *             identifier of the worker that holds the bag
      * @param b
-     *          Bag instance associated to the given identifier
+     *             Bag instance associated to the given identifier
      */
     @SuppressWarnings("rawtypes")
     public WorkerBag(int id, Bag b) {
@@ -388,24 +388,29 @@ public class GLBcomputer extends PlaceLocalObject {
    * the method the programmer should use to get a computation service instance.
    *
    * @param workUnit
-   *          amount of work processed by workers before interrupting their
-   *          routine
+   *                                   amount of work processed by workers
+   *                                   before interrupting their routine
    * @param randomSteals
-   *          maximum number of steals this place can perform before turning to
-   *          its lifelines to steal some work
+   *                                   maximum number of steals this place can
+   *                                   perform before turning to its lifelines
+   *                                   to steal some work
    * @param s
-   *          lifeline strategy to be used by this place
+   *                                   lifeline strategy to be used by this
+   *                                   place
    * @param maximumConcurrentWorkers
-   *          number of maximum concurrent workers for this place
+   *                                   number of maximum concurrent workers for
+   *                                   this place
    * @param tuningTimeout
-   *          number of nanoseconds that need to elapse between two calls to the
-   *          tuning class
+   *                                   number of nanoseconds that need to elapse
+   *                                   between two calls to the tuning class
    * @param t
-   *          implementation of interface {@link Tuner} in charge of adjusting
-   *          the parameters used by the GLB during the computation.
+   *                                   implementation of interface {@link Tuner}
+   *                                   in charge of adjusting the parameters
+   *                                   used by the GLB during the computation.
    * @param whisperInterval
-   *          interval at which the shared object contents are propagated to
-   *          neighboring nodes
+   *                                   interval at which the shared object
+   *                                   contents are propagated to neighboring
+   *                                   nodes
    */
   GLBcomputer(int workUnit, int randomSteals, LifelineStrategy s,
       int maximumConcurrentWorkers, long tuningTimeout, Tuner t,
@@ -518,17 +523,19 @@ public class GLBcomputer extends PlaceLocalObject {
    * Computes the given bag and returns the aggregated result of this
    * computation.
    *
-   * @param <R>
-   *          type of the result produced by the computation
-   * @param <B>
-   *          type of the computation bag
-   * @param bag
-   *          the computation to be performed
-   * @param initResultSupplier
-   *          function that provides new empty result instances
-   * @param emptyBagSupplier
-   *          function that provides new empty computation bag instances
-   * @return aggregated result of the computation
+   * @param  <R>
+   *                              type of the result produced by the computation
+   * @param  <B>
+   *                              type of the computation bag
+   * @param  bag
+   *                              the computation to be performed
+   * @param  initResultSupplier
+   *                              function that provides new empty result
+   *                              instances
+   * @param  emptyBagSupplier
+   *                              function that provides new empty computation
+   *                              bag instances
+   * @return                    aggregated result of the computation
    */
   public <R extends Fold<R> & Serializable, B extends Bag<B, R> & Serializable> R compute(
       B bag, SerializableSupplier<R> initResultSupplier,
@@ -540,20 +547,22 @@ public class GLBcomputer extends PlaceLocalObject {
    * Computes the given bag and returns the result of the distributed
    * computation.
    *
-   * @param <R>
-   *          type parameter for the result produced by the computation
-   * @param <B>
-   *          type parameter for the computation to perform
-   * @param work
-   *          initial work to be processed
-   * @param resultInitializer
-   *          initializer for the result instance
-   * @param queueInitializer
-   *          initializer for the queue used for load balancing purposes
-   * @param workerInitializer
-   *          initializer for the workers bag
-   * @return instance of type R containing the result of the distributed
-   *         computation
+   * @param  <R>
+   *                             type parameter for the result produced by the
+   *                             computation
+   * @param  <B>
+   *                             type parameter for the computation to perform
+   * @param  work
+   *                             initial work to be processed
+   * @param  resultInitializer
+   *                             initializer for the result instance
+   * @param  queueInitializer
+   *                             initializer for the queue used for load
+   *                             balancing purposes
+   * @param  workerInitializer
+   *                             initializer for the workers bag
+   * @return                   instance of type R containing the result of the
+   *                           distributed computation
    */
   @SuppressWarnings("unchecked")
   public <R extends Fold<R> & Serializable, B extends Bag<B, R> & Serializable> R compute(
@@ -586,26 +595,29 @@ public class GLBcomputer extends PlaceLocalObject {
    * implementations of the splitting methods between the workers and the queues
    * used at each place for load balancing.
    *
-   * @param <R>
-   *          Type of the result produced by the computation
-   * @param <B>
-   *          Type of the computation
-   * @param <W>
-   *          Type in charge of performing the communication between the hosts
-   * @param work
-   *          initial fragment of computation
-   * @param initResultSupplier
-   *          initializer for the result instance contained by each process
-   * @param emptyQueueSupplier
-   *          initializer for the queues used to balance the work between the
-   *          workers and between processes
-   * @param emptyBagSupplier
-   *          initializer for the worker's bag
-   * @param whispererSupplier
-   *          initializer for the instance in charge of handling the
-   *          communication of information during the computation
-   * @return instance of type <em>R</em> containing the result of the
-   *         computation
+   * @param  <R>
+   *                              Type of the result produced by the computation
+   * @param  <B>
+   *                              Type of the computation
+   * @param  <W>
+   *                              Type in charge of performing the communication
+   *                              between the hosts
+   * @param  work
+   *                              initial fragment of computation
+   * @param  initResultSupplier
+   *                              initializer for the result instance contained
+   *                              by each process
+   * @param  emptyQueueSupplier
+   *                              initializer for the queues used to balance the
+   *                              work between the workers and between processes
+   * @param  emptyBagSupplier
+   *                              initializer for the worker's bag
+   * @param  whispererSupplier
+   *                              initializer for the instance in charge of
+   *                              handling the communication of information
+   *                              during the computation
+   * @return                    instance of type <em>R</em> containing the
+   *                            result of the computation
    */
   @SuppressWarnings("unchecked")
   public <R extends Fold<R> & Serializable, B extends Bag<B, R> & Serializable, W extends Whisperer<? extends Serializable, R>> R computeWhisperedResult(
@@ -655,24 +667,27 @@ public class GLBcomputer extends PlaceLocalObject {
    * Launches the computation with a periodic whisper based information sharing
    * between the distributed processes.
    *
-   * @param <R>
-   *          Type of the result produced by the computation
-   * @param <B>
-   *          Type of the computation
-   * @param <W>
-   *          Type in charge of performing the communication between the hosts
-   * @param bag
-   *          initial fragment of computation
-   * @param initResultSupplier
-   *          initializer for the result instance contained by each process
-   * @param emptyBagSupplier
-   *          initializer for the worker's bag and the two queues used to
-   *          balance the work
-   * @param whispererSupplier
-   *          initializer for the instance in charge of handling the
-   *          communication of information during the computation
-   * @return instance of type <em>R</em> containing the result of the
-   *         computation
+   * @param  <R>
+   *                              Type of the result produced by the computation
+   * @param  <B>
+   *                              Type of the computation
+   * @param  <W>
+   *                              Type in charge of performing the communication
+   *                              between the hosts
+   * @param  bag
+   *                              initial fragment of computation
+   * @param  initResultSupplier
+   *                              initializer for the result instance contained
+   *                              by each process
+   * @param  emptyBagSupplier
+   *                              initializer for the worker's bag and the two
+   *                              queues used to balance the work
+   * @param  whispererSupplier
+   *                              initializer for the instance in charge of
+   *                              handling the communication of information
+   *                              during the computation
+   * @return                    instance of type <em>R</em> containing the
+   *                            result of the computation
    */
   public <R extends Fold<R> & Serializable, B extends Bag<B, R> & Serializable, W extends Whisperer<? extends Serializable, R> & Serializable> R computeWhisperedResult(
       B bag, SerializableSupplier<R> initResultSupplier,
@@ -702,10 +717,10 @@ public class GLBcomputer extends PlaceLocalObject {
    * </ul>
    *
    * @param victim
-   *          the id from place sending the loot or {@code -1} if it is a random
-   *          steal
+   *                 the id from place sending the loot or {@code -1} if it is a
+   *                 random steal
    * @param loot
-   *          the work that was stolen by this place
+   *                 the work that was stolen by this place
    */
   @SuppressWarnings({ "rawtypes", "unchecked" })
   void deal(int victim, Bag loot) {
@@ -1012,23 +1027,26 @@ public class GLBcomputer extends PlaceLocalObject {
    * <p>
    *
    * @param <R>
-   *          type parameter of the result the computation to come will produce
+   *                             type parameter of the result the computation to
+   *                             come will produce
    * @param <B>
-   *          type parameter of the computation
+   *                             type parameter of the computation
    * @param <W>
-   *          type of the whisperer in charge of propagating shared information
-   *          between hosts
+   *                             type of the whisperer in charge of propagating
+   *                             shared information between hosts
    *
    * @param resultInitSupplier
-   *          supplier of empty result instance
+   *                             supplier of empty result instance
    * @param queueInitializer
-   *          supplier of empty queues for load balancing purposes
+   *                             supplier of empty queues for load balancing
+   *                             purposes
    * @param workerInitializer
-   *          supplier of empty bag for workers
+   *                             supplier of empty bag for workers
    * @param whispererSupplier
-   *          supplier of instances in charge of propagating the shared
-   *          information across hosts. May be left {@code null} if this
-   *          communication feature is not desired.
+   *                             supplier of instances in charge of propagating
+   *                             the shared information across hosts. May be
+   *                             left {@code null} if this communication feature
+   *                             is not desired.
    */
   <R extends Fold<R> & Serializable, B extends Bag<B, R> & Serializable, W extends Whisperer<? extends Serializable, R>> void reset(
       SerializableSupplier<R> resultInitSupplier,
@@ -1108,22 +1126,23 @@ public class GLBcomputer extends PlaceLocalObject {
    * reset.
    *
    * @param <R>
-   *          type parameter for result
+   *                             type parameter for result
    * @param <B>
-   *          type parameter for computation bag
+   *                             type parameter for computation bag
    * @param <W>
-   *          type of the whisperer in charge of propagating shared information
-   *          between hosts
+   *                             type of the whisperer in charge of propagating
+   *                             shared information between hosts
    *
    * @param resultInitSupplier
-   *          supplier of empty result instance
+   *                             supplier of empty result instance
    * @param queueInitializer
-   *          supplier of empty queues for load balancing purposes
+   *                             supplier of empty queues for load balancing
+   *                             purposes
    * @param workerInitializer
-   *          supplier of empty bag for workers
+   *                             supplier of empty bag for workers
    * @param whispererSupplier
-   *          supplier of instances in charge of propagating the shared
-   *          information across hosts
+   *                             supplier of instances in charge of propagating
+   *                             the shared information across hosts
    */
   <R extends Fold<R> & Serializable, B extends Bag<B, R> & Serializable, W extends Whisperer<? extends Serializable, R>> void resetAll(
       SerializableSupplier<R> resultInitSupplier,
@@ -1147,7 +1166,7 @@ public class GLBcomputer extends PlaceLocalObject {
    * from remote hosts.
    *
    * @param b
-   *          the initial bag to compute.
+   *            the initial bag to compute.
    */
   @SuppressWarnings({ "rawtypes", "unchecked" })
   void run(Bag b) {
@@ -1198,8 +1217,8 @@ public class GLBcomputer extends PlaceLocalObject {
    * <p>
    *
    * @param thief
-   *          the integer id of the place performing the steal, or `(-id - 1)`
-   *          if this is a random steal
+   *                the integer id of the place performing the steal, or `(-id -
+   *                1)` if this is a random steal
    */
   @SuppressWarnings("rawtypes")
   synchronized void steal(int thief) {
@@ -1263,21 +1282,25 @@ public class GLBcomputer extends PlaceLocalObject {
    * performed for the warm-up, only the load balance operations between the
    * workers of each host is performed.
    *
-   * @param <R>
-   *          type of the result produced by the warm-up computation
-   * @param <B>
-   *          type of the computation at hand
-   * @param warmupBagSupplier
-   *          supplier of the work sample which will be computed at each place
-   *          independently as a warm-up
-   * @param resultInitializer
-   *          initializer for the result instance of each place
-   * @param queueInitializer
-   *          initializer for the two queues used at each place to perform load
-   *          balancing operations
-   * @param workerInitializer
-   *          initializer for the bags held by each worker
-   * @return logger instance containing information about the warm-up execution
+   * @param  <R>
+   *                             type of the result produced by the warm-up
+   *                             computation
+   * @param  <B>
+   *                             type of the computation at hand
+   * @param  warmupBagSupplier
+   *                             supplier of the work sample which will be
+   *                             computed at each place independently as a
+   *                             warm-up
+   * @param  resultInitializer
+   *                             initializer for the result instance of each
+   *                             place
+   * @param  queueInitializer
+   *                             initializer for the two queues used at each
+   *                             place to perform load balancing operations
+   * @param  workerInitializer
+   *                             initializer for the bags held by each worker
+   * @return                   logger instance containing information about the
+   *                           warm-up execution
    */
   public <R extends Fold<R> & Serializable, B extends Bag<B, R> & Serializable> Logger warmup(
       SerializableSupplier<B> warmupBagSupplier,
@@ -1340,8 +1363,8 @@ public class GLBcomputer extends PlaceLocalObject {
    * </ol>
    *
    * @param workerBag
-   *          computation to process along with an identifier for this worker
-   *          process
+   *                    computation to process along with an identifier for this
+   *                    worker process
    */
   @SuppressWarnings({ "rawtypes", "unchecked" })
   void workerProcess(WorkerBag workerBag) {
@@ -1373,10 +1396,6 @@ public class GLBcomputer extends PlaceLocalObject {
         if (intraQueueEmpty) {
           if (bag.isSplittable()) {
             synchronized (intraPlaceQueue) {
-              // intraQueueEmpty = false; // Setting the flag early will prevent
-              // other workers with work to pile up on
-              // the entrance of this synchronized
-              // block
               intraPlaceQueue.merge(bag.split(false));
               logger.intraQueueFed.incrementAndGet();
               intraQueueEmpty = intraPlaceQueue.isEmpty();

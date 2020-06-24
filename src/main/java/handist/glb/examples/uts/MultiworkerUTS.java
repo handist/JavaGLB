@@ -106,7 +106,7 @@ public class MultiworkerUTS implements Bag<MultiworkerUTS, Sum>, Serializable {
 
     final int branchingFactor = Integer.parseInt(cmd.getOptionValue('b'));
     final int depth = Integer.parseInt(cmd.getOptionValue('d'));
-    final int repetitions = Integer.parseInt(cmd.getOptionValue('d', "1"));
+    final int repetitions = Integer.parseInt(cmd.getOptionValue('r', "1"));
     final boolean showLog = true;
 
     final MultiworkerUTS warmup = new MultiworkerUTS(64, branchingFactor);

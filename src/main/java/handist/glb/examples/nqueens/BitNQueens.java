@@ -12,6 +12,8 @@ import handist.glb.Bag;
 import handist.glb.examples.pentomino.Answer;
 
 /**
+ * Implementation of the N-Queens search using a bit-mask implementation.
+ *
  * @author Patrick Finnerty
  *
  */
@@ -20,15 +22,12 @@ public class BitNQueens implements Bag<BitNQueens, Answer>, Serializable {
   /** Serial Version UID */
   private static final long serialVersionUID = -7839265072845647786L;
 
-  /** Counter for the number of nodes explored during the computation */
-  private long nodesExplored[];
-
   /**
    * Main method. Launches a sequential exploration of the N-Queens problem of
    * the specified size.
    *
    * @param args
-   *               one argument: size of the problem
+   *          one argument: size of the problem
    */
   public static void main(String args[]) {
     int n = 5;
@@ -64,6 +63,9 @@ public class BitNQueens implements Bag<BitNQueens, Answer>, Serializable {
 
   /** Size of the problem at hand */
   final int N;
+
+  /** Counter for the number of nodes explored during the computation */
+  private long nodesExplored[];
 
   /** Reserve of exploration to perform */
   Deque<BitNQueens> reserve;
@@ -107,10 +109,18 @@ public class BitNQueens implements Bag<BitNQueens, Answer>, Serializable {
   int[] treeUpperBound;
 
   /**
+   * Private constructor used create instances that will be used as recipients
+   * for a fragment of the computation
+   */
+  private BitNQueens() {
+    N = 42;
+  }
+
+  /**
    * Constructor for the BitNQueens
    *
    * @param boardSize
-   *                    width of the board considered
+   *          width of the board considered
    */
   public BitNQueens(int boardSize) {
     N = boardSize;
@@ -125,15 +135,8 @@ public class BitNQueens implements Bag<BitNQueens, Answer>, Serializable {
   }
 
   /**
-   * Private constructor used create instances that will be used as recipients
-   * for a fragment of the computation
-   */
-  private BitNQueens() {
-    N = 42;
-  }
-
-  /**
-   * Resets this instance to start the whole computation
+   * Resets this instance to start the whole computation. For computation using
+   * the GLB, you should call {@link #initParallel()} instead of this method.
    */
   public void init() {
     depth = 0;
@@ -144,6 +147,15 @@ public class BitNQueens implements Bag<BitNQueens, Answer>, Serializable {
     treeLowerBound[0] = 0;
     treeUpperBound[0] = N;
     solutionsFound = 0;
+  }
+
+  /**
+   * Initializes an instance to make it ready for a parallel exploration using
+   * the GLB.
+   */
+  public void initParallel() {
+    init();
+    reserve.add(this);
   }
 
   /*
@@ -180,23 +192,6 @@ public class BitNQueens implements Bag<BitNQueens, Answer>, Serializable {
     }
   }
 
-  /**
-   * Takes the provided instance and updates the member of this instance to
-   * continue the exploration of the provided instance
-   *
-   * @param poll
-   *               instance whose exploration is to continue
-   */
-  private void restore(BitNQueens c) {
-    stackAntiDiagonal = c.stackAntiDiagonal;
-    stackColumn = c.stackColumn;
-    stackDiagonal = c.stackDiagonal;
-    stackMask = c.stackMask;
-    depth = c.depth;
-    treeLowerBound = c.treeLowerBound;
-    treeUpperBound = c.treeUpperBound;
-  }
-
   /*
    * (non-Javadoc)
    *
@@ -211,6 +206,23 @@ public class BitNQueens implements Bag<BitNQueens, Answer>, Serializable {
         step();
       }
     }
+  }
+
+  /**
+   * Takes the provided instance and updates the member of this instance to
+   * continue the exploration of the provided instance
+   *
+   * @param poll
+   *          instance whose exploration is to continue
+   */
+  private void restore(BitNQueens c) {
+    stackAntiDiagonal = c.stackAntiDiagonal;
+    stackColumn = c.stackColumn;
+    stackDiagonal = c.stackDiagonal;
+    stackMask = c.stackMask;
+    depth = c.depth;
+    treeLowerBound = c.treeLowerBound;
+    treeUpperBound = c.treeUpperBound;
   }
 
   /*
@@ -248,37 +260,25 @@ public class BitNQueens implements Bag<BitNQueens, Answer>, Serializable {
           treeUpperBound[i] -= options / 2;
           newDepth = i; // There is at least one node left on this level
           lootDepth = i;
-        } else if (options == 1 && takeAll) {
-          treeUpperBound[i]--; // Makes it equal to treeLowerBound[i];
-          lootDepth = i;
+        } else if (options == 1) {
+          if (takeAll) {
+            treeUpperBound[i]--; // Makes it equal to treeLowerBound[i];
+            lootDepth = i;
+          } else {
+            newDepth = i; // The single node remaining is not given away
+          }
         }
       }
       loot.treeLowerBound = Arrays.copyOf(treeUpperBound, N);
 
       loot.depth = lootDepth;
       depth = newDepth; // This makes the current instance backtrack to the last
-                        // level where there are nodes left in the exploration
-                        // tree (or -1 if all nodes were given away)
+      // level where there are nodes left in the exploration
+      // tree (or -1 if all nodes were given away)
       toReturn.reserve.add(loot);
     }
 
     return toReturn;
-  }
-
-  /**
-   * Indicates if the current exploration has enough nodes to be split in
-   * several exploration trees
-   *
-   * @return true if the current exploration
-   */
-  private boolean treeSplittable() {
-    for (int i = 0; i <= depth; i++) {
-      if (treeUpperBound[i] - treeLowerBound[i] >= 2) {
-        return true;
-      }
-    }
-
-    return false;
   }
 
   /**
@@ -300,12 +300,9 @@ public class BitNQueens implements Bag<BitNQueens, Answer>, Serializable {
         if (depth == N - 1) {
           // We found a solution
           solutionsFound++;
-
         } else {
-
           // The candidate can be placed. We integrate it to the board and write
-          // it
-          // to the stack
+          // it to the stack
           stackColumn[depth + 1] = stackColumn[depth] | mask;
           stackAntiDiagonal[depth + 1] = (stackAntiDiagonal[depth] | mask) << 1;
           stackDiagonal[depth + 1] = (stackDiagonal[depth] | mask) >>> 1;
@@ -338,12 +335,34 @@ public class BitNQueens implements Bag<BitNQueens, Answer>, Serializable {
     }
   }
 
+  @Override
+  public String toString() {
+    final String upper = Arrays.toString(treeUpperBound);
+    final String lower = Arrays.toString(treeLowerBound);
+    final int[] branchesLeft = new int[treeUpperBound.length];
+    for (int i = 0; i < branchesLeft.length; i++) {
+      branchesLeft[i] = treeUpperBound[i] - treeLowerBound[i];
+    }
+    final String branches = Arrays.toString(branchesLeft);
+    final String nl = System.lineSeparator();
+    return "Upper:" + upper + nl + "Lower:" + lower + nl + "Branches:"
+        + branches + nl;
+
+  }
+
   /**
-   * Initializes an instance to make it ready for a parallel exploration using
-   * the GLB.
+   * Indicates if the current exploration has enough nodes to be split in
+   * several exploration trees
+   *
+   * @return true if the current exploration
    */
-  public void initParallel() {
-    init();
-    reserve.add(this);
+  private boolean treeSplittable() {
+    for (int i = 0; i <= depth; i++) {
+      if (treeUpperBound[i] - treeLowerBound[i] >= 2) {
+        return true;
+      }
+    }
+
+    return false;
   }
 }

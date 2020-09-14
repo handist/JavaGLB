@@ -28,6 +28,8 @@ import handist.glb.Bag;
 import handist.glb.Configuration;
 import handist.glb.GLBcomputer;
 import handist.glb.GLBfactory;
+import handist.glb.Logger;
+import handist.glb.util.SerializableSupplier;
 
 /**
  * Implementation of an Unbalanced Tree Search computation.
@@ -75,8 +77,8 @@ public class MultiworkerUTS implements Bag<MultiworkerUTS, Sum>, Serializable {
         "Branching factor, i.e. average number of children of each node.");
     opts.addRequiredOption("d", "depth", true,
         "Depth of the Exploration to perform");
-    opts.addOption("r", "repeat", true,
-        "Number of times the computation needs to be done, 1 by default.");
+    opts.addOption("w", "warmup", true,
+        "warmup depth, setting this option will activate the warmup");
     return opts;
   }
 
@@ -85,9 +87,9 @@ public class MultiworkerUTS implements Bag<MultiworkerUTS, Sum>, Serializable {
    * multiworker Global Load Balancer.
    *
    * @param args
-   *               tree depth (positive integer), number of repetitions to
-   *               perform (positive integer), show advanced computation
-   *               statistics ("true" or "false)
+   *          tree depth (positive integer), number of repetitions to perform
+   *          (positive integer), show advanced computation statistics ("true"
+   *          or "false)
    */
   public static void main(String[] args) {
     final Options programOptions = commandOptions();
@@ -99,18 +101,21 @@ public class MultiworkerUTS implements Bag<MultiworkerUTS, Sum>, Serializable {
       System.err.println(e1.getLocalizedMessage());
       final HelpFormatter formatter = new HelpFormatter();
       formatter.printHelp(
-          "java [...] MultiworkerUTS -d <integer> -b <integer> [-r <integer>]",
+          "java [...] MultiworkerUTS -d <integer> -b <integer> [-w <integer>]",
           programOptions);
       return;
     }
 
     final int branchingFactor = Integer.parseInt(cmd.getOptionValue('b'));
     final int depth = Integer.parseInt(cmd.getOptionValue('d'));
-    final int repetitions = Integer.parseInt(cmd.getOptionValue('r', "1"));
-    final boolean showLog = true;
+    final int warmupSize = Integer.parseInt(cmd.getOptionValue('w', "0"));
+    final int repetitions = 1;
 
-    final MultiworkerUTS warmup = new MultiworkerUTS(64, branchingFactor);
-    warmup.seed(19, depth - 2);
+    final SerializableSupplier<MultiworkerUTS> warmupSupplier = () -> {
+      final MultiworkerUTS warmup = new MultiworkerUTS(64, branchingFactor);
+      warmup.seed(19, depth - 2);
+      return warmup;
+    };
 
     GLBcomputer glb;
     try {
@@ -118,9 +123,17 @@ public class MultiworkerUTS implements Bag<MultiworkerUTS, Sum>, Serializable {
 
       final Configuration conf = glb.getConfiguration();
 
-      glb.compute(warmup, () -> new Sum(0),
-          () -> new MultiworkerUTS(64, branchingFactor));
-      System.out.println("UTS Depth: " + depth + " " + conf);
+      if (warmupSize > 0) {
+        final Logger warmupLog = glb.warmup(warmupSupplier, () -> new Sum(0),
+            () -> new MultiworkerUTS(64, branchingFactor),
+            () -> new MultiworkerUTS(64, branchingFactor));
+        System.out.println("WARMUP TIME; "
+            + (warmupLog.initializationTime + warmupLog.computationTime) / 1e9
+            + ";");
+        System.err.println("Warm-up Logs");
+        warmupLog.print(System.err);
+        System.err.println();
+      }
       System.err.println("UTS Depth: " + depth + " " + conf);
 
       for (int i = 0; i < repetitions; i++) {
@@ -129,17 +142,18 @@ public class MultiworkerUTS implements Bag<MultiworkerUTS, Sum>, Serializable {
 
         final Sum s = glb.compute(taskBag, () -> new Sum(0),
             () -> new MultiworkerUTS(64, branchingFactor));
-        System.out.println("Run " + i + "/" + repetitions + ";" + s.sum + ";"
-            + glb.getLog().computationTime / 1e9 + ";");
-        if (showLog) {
-          glb.getLog().print(System.err);
-        }
+        final Logger log = glb.getLog();
+        System.err.println("Run " + i + "/" + repetitions + ";" + s.sum + ";"
+            + log.computationTime / 1e9 + ";");
+
+        System.out
+            .println("COMPUTATION TIME;" + log.computationTime / 1e9 + ";");
+        System.out.println();
+        log.print(System.out);
       }
     } catch (final ReflectiveOperationException e) {
-
       e.printStackTrace();
     }
-
   }
 
   /**
@@ -192,9 +206,9 @@ public class MultiworkerUTS implements Bag<MultiworkerUTS, Sum>, Serializable {
    * arrays used in the implementation.
    *
    * @param initialSize
-   *                      depth of the tree exploration
+   *          depth of the tree exploration
    * @param b
-   *                      branching factor
+   *          branching factor
    */
   public MultiworkerUTS(int initialSize, int b) {
     hash = new byte[initialSize * 20 + 4];
@@ -213,10 +227,10 @@ public class MultiworkerUTS implements Bag<MultiworkerUTS, Sum>, Serializable {
    * density function pre-computed provided as parameter
    *
    * @param initialSize
-   *                      initial size of the arrays to create (corresponds to
-   *                      the depth of the exploration the instance can handle)
+   *          initial size of the arrays to create (corresponds to the depth of
+   *          the exploration the instance can handle)
    * @param density
-   *                      pre-computed value for member {@link #den}
+   *          pre-computed value for member {@link #den}
    */
   protected MultiworkerUTS(int initialSize, double density) {
     hash = new byte[initialSize * 20 + 4];
@@ -232,14 +246,12 @@ public class MultiworkerUTS implements Bag<MultiworkerUTS, Sum>, Serializable {
   /**
    * Generates the seed and the children nodes of node being currently explored.
    *
-   * @param  d
-   *                           maximum depth of the tree to explore
-   * @param  md
-   *                           the {@link MessageDigest} used to generate the
-   *                           tree seed
+   * @param d
+   *          maximum depth of the tree to explore
+   * @param md
+   *          the {@link MessageDigest} used to generate the tree seed
    * @throws DigestException
-   *                           if the {@link MessageDigest} throws an exception
-   *                           when called
+   *           if the {@link MessageDigest} throws an exception when called
    */
   private void digest(int d, MessageDigest md) throws DigestException {
     // Creates more space in the arrays if need be
@@ -280,12 +292,10 @@ public class MultiworkerUTS implements Bag<MultiworkerUTS, Sum>, Serializable {
   /**
    * Explores one node on the tree and returns.
    *
-   * @param  md
-   *                           the {@link MessageDigest} instance to be used to
-   *                           generate the tree
+   * @param md
+   *          the {@link MessageDigest} instance to be used to generate the tree
    * @throws DigestException
-   *                           if the provided {@link MessageDigest} throws an
-   *                           exception
+   *           if the provided {@link MessageDigest} throws an exception
    */
   public void expand(MessageDigest md) throws DigestException {
     final int top = currentDepth - 1;
@@ -382,7 +392,7 @@ public class MultiworkerUTS implements Bag<MultiworkerUTS, Sum>, Serializable {
    * Prints the current status of this instance to the provided output stream.
    *
    * @param out
-   *              output to which the state of the tree needs to be written to
+   *          output to which the state of the tree needs to be written to
    */
   public void print(PrintStream out) {
     out.println(String.format("Index :  %1$2d", currentDepth));
@@ -440,9 +450,9 @@ public class MultiworkerUTS implements Bag<MultiworkerUTS, Sum>, Serializable {
    * is started.
    *
    * @param seed
-   *                an integer used as seed
+   *          an integer used as seed
    * @param depth
-   *                maximum depth of the intended exploration
+   *          maximum depth of the intended exploration
    */
   public void seed(int seed, int depth) {
     try {

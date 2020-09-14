@@ -3,6 +3,13 @@
  */
 package handist.glb.examples.nqueens;
 
+import org.apache.commons.cli.CommandLine;
+import org.apache.commons.cli.CommandLineParser;
+import org.apache.commons.cli.DefaultParser;
+import org.apache.commons.cli.HelpFormatter;
+import org.apache.commons.cli.Options;
+import org.apache.commons.cli.ParseException;
+
 import handist.glb.GLBcomputer;
 import handist.glb.GLBfactory;
 import handist.glb.Logger;
@@ -18,16 +25,39 @@ import handist.glb.examples.pentomino.Answer;
 public class ParallelBitNQueens {
 
   /**
+   * Prepares the various options that can be given to the program
+   *
+   * @return an {@link Options} instance containing all the possible options
+   *         that can be given to the main program
+   */
+  private static Options commandOptions() {
+    final Options opts = new Options();
+    opts.addRequiredOption("n", "boardwidth", true,
+        "board width (size of the problem)");
+    return opts;
+  }
+
+  /**
    * Launches a parallel exploration of the N-Queens problem
    *
    * @param args
-   *               size of the problem
+   *          size of the problem
    */
   public static void main(String[] args) {
-    int n = 5;
-    if (args.length >= 1) {
-      n = Integer.parseInt(args[0]);
+    final Options programOptions = commandOptions();
+    final CommandLineParser parser = new DefaultParser();
+    CommandLine cmd = null;
+    try {
+      cmd = parser.parse(programOptions, args);
+    } catch (final ParseException e1) {
+      System.err.println(e1.getLocalizedMessage());
+      final HelpFormatter formatter = new HelpFormatter();
+      formatter.printHelp("java [...] ParallelBitNQueens -n <integer>",
+          programOptions);
+      return;
     }
+
+    final int n = Integer.parseInt(cmd.getOptionValue('n'));
 
     GLBcomputer c;
     try {

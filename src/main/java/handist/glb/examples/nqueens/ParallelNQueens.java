@@ -13,6 +13,13 @@ package handist.glb.examples.nqueens;
 
 import java.util.LinkedList;
 
+import org.apache.commons.cli.CommandLine;
+import org.apache.commons.cli.CommandLineParser;
+import org.apache.commons.cli.DefaultParser;
+import org.apache.commons.cli.HelpFormatter;
+import org.apache.commons.cli.Options;
+import org.apache.commons.cli.ParseException;
+
 import handist.glb.GLBcomputer;
 import handist.glb.GLBfactory;
 import handist.glb.Logger;
@@ -23,9 +30,25 @@ import handist.glb.examples.pentomino.Answer;
  * problem.
  *
  * @author Patrick Finnerty
- *
  */
 public class ParallelNQueens {
+
+  /**
+   * Prepares the various options that can be given to the program
+   *
+   * @return an {@link Options} instance containing all the possible options
+   *         that can be given to the main program
+   */
+  private static Options commandOptions() {
+    final Options opts = new Options();
+    opts.addRequiredOption("n", "boardwidth", true,
+        "board width (size of the problem)");
+    opts.addOption("w", "warmup", true,
+        "warmup size, setting this option will activate the warmup");
+    // opts.addOption("r", "repeat", true,
+    // "Number of times the computation needs to be done, 1 by default.");
+    return opts;
+  }
 
   /**
    * Launches a parallel execution of the N-Queens problem using the global load
@@ -37,31 +60,29 @@ public class ParallelNQueens {
    * specified, no warm-up will be performed.
    *
    * @param args
-   *               size of the problem and number of repetitions. Optionally the
-   *               size of the warm-up to perform.
+   *          size of the problem and number of repetitions. Optionally the size
+   *          of the warm-up to perform.
    */
   public static void main(String[] args) {
-    int size;
-    int repetitions;
-    int warmupSize = 0;
-    GLBcomputer computer = null;
+    final Options programOptions = commandOptions();
+    final CommandLineParser parser = new DefaultParser();
+    CommandLine cmd = null;
     try {
-      size = Integer.parseInt(args[0]);
-    } catch (final Exception e) {
-      System.err.println("Error while parsing the arguments");
-      System.err.println("Args <N> [rep] [warmup size]");
+      cmd = parser.parse(programOptions, args);
+    } catch (final ParseException e1) {
+      System.err.println(e1.getLocalizedMessage());
+      final HelpFormatter formatter = new HelpFormatter();
+      formatter.printHelp(
+          "java [...] ParallelNQueens -n <integer> [-w <integer>]",
+          programOptions);
       return;
     }
-    try {
-      repetitions = Integer.parseInt(args[1]);
-    } catch (final Exception e) {
-      repetitions = 1;
-    }
-    try {
-      warmupSize = Integer.parseInt(args[2]);
-    } catch (final Exception e) {
-    }
 
+    final int size = Integer.parseInt(cmd.getOptionValue('n'));
+    final int repetitions = 1;
+    final int warmupSize = Integer.parseInt(cmd.getOptionValue('w', "1"));
+
+    GLBcomputer computer = null;
     try {
       computer = GLBfactory.setupGLB();
     } catch (final Exception e) {
@@ -72,7 +93,7 @@ public class ParallelNQueens {
 
     if (warmupSize > 0) {
       final int SIZE = warmupSize;
-      System.out.println("Starting Warm-up with " + SIZE + "-Queens");
+      System.err.println("Starting Warm-up with " + SIZE + "-Queens");
       final Logger warmupLog = computer.warmup(() -> {
         final NQueens problem = new NQueens(SIZE);
         problem.init();
@@ -82,15 +103,18 @@ public class ParallelNQueens {
         return warmupBag;
       }, () -> new Answer(SIZE), () -> new NQueens(SIZE),
           () -> new NQueens(SIZE));
-      System.out.println("Warmup Time (s); "
-          + (warmupLog.initializationTime + warmupLog.computationTime) / 1e9);
+      System.out.println("WARMUP TIME; "
+          + (warmupLog.initializationTime + warmupLog.computationTime) / 1e9
+          + ";");
       System.err.println("Warm-up Logs");
       warmupLog.print(System.err);
+      System.err.println();
     }
 
-    System.out.println(
+    System.err.println(
         "N=" + size + "; Configuration: " + computer.getConfiguration());
-    System.out.println("Run;Solutions;TreeNodes;Init time(s);"
+    System.err.println();
+    System.err.println("Run;Solutions;TreeNodes;Init time(s);"
         + "Computation time(s);Gathering time(s);");
     for (int i = 0; i < repetitions; i++) {
 
@@ -113,22 +137,24 @@ public class ParallelNQueens {
         treeSize += n;
       }
 
-      System.out.println(
+      System.err.println(
           i + "/" + repetitions + ";" + result.solutions + ";" + treeSize + ";"
               + log.initializationTime / 1e9 + ";" + log.computationTime / 1e9
               + ";" + log.resultGatheringTime / 1e9 + ";");
-      System.err.println("Run " + i + " of " + repetitions);
-      System.err.print("Nodes; ");
-      for (int j = 0; j < SIZE; j++) {
-        System.err.print(result.nodes[j] + ";");
-      }
-      System.err.println();
-      System.err.print("Branch; ");
-      for (int j = 0; j < SIZE; j++) {
-        System.err.print(result.branch[j] + ";");
-      }
-      System.err.println();
-      log.print(System.err);
+      // System.err.println("Run " + i + " of " + repetitions);
+      // System.err.print("Nodes; ");
+      // for (int j = 0; j < SIZE; j++) {
+      // System.err.print(result.nodes[j] + ";");
+      // }
+      // System.err.println();
+      // System.err.print("Branch; ");
+      // for (int j = 0; j < SIZE; j++) {
+      // System.err.print(result.branch[j] + ";");
+      // }
+      // System.err.println();
+      System.out.println("COMPUTATION TIME;" + log.computationTime / 1e9 + ";");
+      System.out.println();
+      log.print(System.out);
     }
   }
 }

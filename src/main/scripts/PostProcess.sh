@@ -13,11 +13,13 @@
 # Fixed grain sizes to process
 FIXED_GRAINS="8 32 128 512 2048 8192 32768 131072 524288 2097152"
 # Tuners to process
-TUNERS="handist.glb.tuning.Ntuner"
+#TUNERS=""
+TUNERS="handist.glb.tuning.Ntuner handist.glb.tuning.KamadaTuner"
 ##########################################################
 PREFIX=${1%/}
 DIR=$1
-NB_HOSTS=3 #Is actually 4 but for gnuplot script, it's [0,3]
+NB_HOSTS=7 #Is actually 4 but for gnuplot script, it's [0,3]
+let HOSTS=$NB_HOSTS+1
 ##########################################################
 echo "Checking directory structure and file presence"
 cd $DIR
@@ -36,7 +38,7 @@ do
 		do
 			for g in $FIXED_GRAINS
 			do
-				FILE=${PREFIX}_${problem}-fixedGrain_Param${g}_Run${r}.txt
+				FILE=${PREFIX}_${problem}-fixedGrain-param${g}_Run${r}.txt
 				if [[ -f $FILE ]]
 				then
 					echo "[OK] file ${problem}/$FILE found"
@@ -47,7 +49,7 @@ do
 			done
 			for t in $TUNERS
 			do
-				FILE=${PREFIX}_${problem}-tuner_Param${t}_Run${r}.txt
+				FILE=${PREFIX}_${problem}-tuner-param${t}_Run${r}.txt
 				if [[ -f $FILE ]]
 				then
 				    echo "[OK] file ${problem}/$FILE found"
@@ -68,14 +70,17 @@ cd ..
 # PARSING each problem's files                           #
 ##########################################################
 
-for problem in NQueens Pentomino UTS TSP
+for problem in Pentomino UTS TSP NQueens
 do
 	runs=5
 	if [ $problem == "TSP" ]
 	then
 	    runs=10
 	fi
+	# Generating execution times only, in a handy table
 	./ExecutionTimes.sh $problem ${DIR} $runs "${FIXED_GRAINS}" "${TUNERS}"
+	# Extracting more detailed information on queue accesses
+	. ./ExecTimesAndQueueAccesses.sh $problem ${DIR} $runs $FIXED_GRAINS $TUNERS
 done
 
 
@@ -83,9 +88,9 @@ done
 # GENERATING Grain size / Time plots                        #
 #############################################################
 
-mkdir TunerPlots
+mkdir -p TunerPlots
 
-for problem in Pentomino # NQueens Pentomino UTS TSP
+for problem in Pentomino NQueens Pentomino UTS TSP
 do
 	runs=5
 	if [ $problem == "TSP" ]
@@ -97,7 +102,7 @@ do
 	do
 		for (( r = 1; r <= $runs; r++ ))
 		do
-			FILE=$DIR/${problem}/${PREFIX}_${problem}-tuner_Param${t}_Run${r}.txt
+			FILE=$DIR/${problem}/${PREFIX}_${problem}-tuner-param${t}_Run${r}.txt
 
 			EXEC_TIME=`grep COMPUTATION $FILE | sed -r -e 's/COMPUTATION TIME;([0-9]*)\.([0-9]*);/\1/'`
 			sed -n '/Place(0) stamp/,$p' $FILE > data.csv

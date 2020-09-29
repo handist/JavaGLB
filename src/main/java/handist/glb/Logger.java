@@ -70,7 +70,8 @@ public class Logger {
 
     // Print the general counters for each place
     out.println(
-        "Place;Worker Spawns;IntraQueueSplit;IntraQueueFed;InterQueueSplit;InterQueueFed;"
+        "Place;Worker Spawns;IntraQueueSplit;IntraQueueFed;IntraQueueEmptied;"
+            + "InterQueueSplit;InterQueueFed;InterQueueEmptied;"
             + "Rdm Steals Attempted;Rdm Steals Successes;"
             + "Rdm Steals Received;Rdm Steals Suffered;"
             + "Lifeline Steals Attempts;Lifeline Steals Success;"
@@ -81,15 +82,16 @@ public class Logger {
 
     for (final PlaceLogger l : placeLogs) {
       out.println(l.place + ";" + l.workerSpawned + ";" + l.intraQueueSplit
-          + ";" + l.intraQueueFed + ";" + l.interQueueSplit + ";"
-          + l.interQueueFed + ";" + l.stealsAttempted + ";" + l.stealsSuccess
-          + ";" + l.stealsReceived + ";" + l.stealsSuffered + ";"
-          + l.lifelineStealsAttempted + ";" + l.lifelineStealsSuccess + ";"
-          + l.lifelineStealsReceived + ";" + l.lifelineStealsSuffered + ";"
-          + l.lifelineThreadActive / 1e9 + ";" + l.lifelineThreadHold / 1e9
-          + ";" + l.lifelineThreadInactive / 1e9 + ";" + l.lifelineThreadWokenUp
-          + ";" + l.communicationSent + ";" + l.communicationReceived + ";"
-          + l.yieldingTime / 1e9 + ";");
+          + ";" + l.intraQueueFed + ";" + l.intraQueueEmptied + ";"
+          + l.interQueueSplit + ";" + l.interQueueFed + ";"
+          + l.interQueueEmptied + ";" + l.stealsAttempted + ";"
+          + l.stealsSuccess + ";" + l.stealsReceived + ";" + l.stealsSuffered
+          + ";" + l.lifelineStealsAttempted + ";" + l.lifelineStealsSuccess
+          + ";" + l.lifelineStealsReceived + ";" + l.lifelineStealsSuffered
+          + ";" + l.lifelineThreadActive / 1e9 + ";"
+          + l.lifelineThreadHold / 1e9 + ";" + l.lifelineThreadInactive / 1e9
+          + ";" + l.lifelineThreadWokenUp + ";" + l.communicationSent + ";"
+          + l.communicationReceived + ";" + l.yieldingTime / 1e9 + ";");
 
     }
     out.println();

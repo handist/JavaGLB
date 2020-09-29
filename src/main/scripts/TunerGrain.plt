@@ -22,4 +22,4 @@ set xtics 60
 set xlabel "elapsed time (s)"
 set ylabel "grain size"
 
-plot for [i=0:MAX_CURVE] DATA u i*2+1:i*2  title sprintf("%s%i","h",i) with steps
+plot for [i=0:MAX_CURVE] DATA u i*2+1:i*2+2  title sprintf("%s%i","h",i) with steps

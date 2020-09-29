@@ -27,7 +27,7 @@ do
 	do
 		STAMP=`date +"%m-%d-%y %R"`
 		echo "[$STAMP] Launching $PROGRAM $param run ${run}"
-		nohup bash $PROGRAM $param > ${PREFIX}_Param${param}_Run${run}.txt 2> ${PREFIX}_Param${param}_Run${run}.err.txt
+		nohup bash $PROGRAM $param > ${PREFIX}-param${param}_Run${run}.txt 2> ${PREFIX}-param${param}_Run${run}.err.txt
 	done
 
 	STAMP=`date +"%m-%d-%y %R"`

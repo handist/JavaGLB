@@ -37,12 +37,13 @@ import handist.glb.util.SerializableSupplier;
  * This class is an adaptation from the <a href=
  * "https://github.com/x10-lang/apgas/blob/master/apgas.examples/src/apgas/examples/UTS.java">apgas.examples.UTS</a>
  * class to fit the {@link Bag} interface for the multithreaded global load
- * balaner. The result returned by {@link MultiworkerUTS} is the total number of
- * nodes explored, using the {@link Sum} class.
+ * balaner. The result returned by {@link MultiworkerUTSsplit3} is the total
+ * number of nodes explored, using the {@link Sum} class.
  *
  * @author Patrick Finnerty
  */
-public class MultiworkerUTS implements Bag<MultiworkerUTS, Sum>, Serializable {
+public class MultiworkerUTSsplit3
+    implements Bag<MultiworkerUTSsplit3, Sum>, Serializable {
 
   /** Branching factor */
   protected final double den;
@@ -111,8 +112,9 @@ public class MultiworkerUTS implements Bag<MultiworkerUTS, Sum>, Serializable {
     final int warmupSize = Integer.parseInt(cmd.getOptionValue('w', "0"));
     final int repetitions = 1;
 
-    final SerializableSupplier<MultiworkerUTS> warmupSupplier = () -> {
-      final MultiworkerUTS warmup = new MultiworkerUTS(64, branchingFactor);
+    final SerializableSupplier<MultiworkerUTSsplit3> warmupSupplier = () -> {
+      final MultiworkerUTSsplit3 warmup = new MultiworkerUTSsplit3(64,
+          branchingFactor);
       warmup.seed(19, depth - 2);
       return warmup;
     };
@@ -125,8 +127,8 @@ public class MultiworkerUTS implements Bag<MultiworkerUTS, Sum>, Serializable {
 
       if (warmupSize > 0) {
         final Logger warmupLog = glb.warmup(warmupSupplier, () -> new Sum(0),
-            () -> new MultiworkerUTS(64, branchingFactor),
-            () -> new MultiworkerUTS(64, branchingFactor));
+            () -> new MultiworkerUTSsplit3(64, branchingFactor),
+            () -> new MultiworkerUTSsplit3(64, branchingFactor));
         System.out.println("WARMUP TIME; "
             + (warmupLog.initializationTime + warmupLog.computationTime) / 1e9
             + ";");
@@ -137,11 +139,12 @@ public class MultiworkerUTS implements Bag<MultiworkerUTS, Sum>, Serializable {
       System.err.println("UTS Depth: " + depth + " " + conf);
 
       for (int i = 0; i < repetitions; i++) {
-        final MultiworkerUTS taskBag = new MultiworkerUTS(64, branchingFactor);
+        final MultiworkerUTSsplit3 taskBag = new MultiworkerUTSsplit3(64,
+            branchingFactor);
         taskBag.seed(19, depth);
 
         final Sum s = glb.compute(taskBag, () -> new Sum(0),
-            () -> new MultiworkerUTS(64, branchingFactor));
+            () -> new MultiworkerUTSsplit3(64, branchingFactor));
         final Logger log = glb.getLog();
         System.err.println("Run " + i + "/" + repetitions + ";" + s.sum + ";"
             + log.computationTime / 1e9 + ";");
@@ -210,7 +213,7 @@ public class MultiworkerUTS implements Bag<MultiworkerUTS, Sum>, Serializable {
    * @param b
    *          branching factor
    */
-  public MultiworkerUTS(int initialSize, int b) {
+  public MultiworkerUTSsplit3(int initialSize, int b) {
     hash = new byte[initialSize * 20 + 4];
     depth = new int[initialSize];
     lower = new int[initialSize];
@@ -232,7 +235,7 @@ public class MultiworkerUTS implements Bag<MultiworkerUTS, Sum>, Serializable {
    * @param density
    *          pre-computed value for member {@link #den}
    */
-  protected MultiworkerUTS(int initialSize, double density) {
+  protected MultiworkerUTSsplit3(int initialSize, double density) {
     hash = new byte[initialSize * 20 + 4];
     depth = new int[initialSize];
     lower = new int[initialSize];
@@ -375,7 +378,7 @@ public class MultiworkerUTS implements Bag<MultiworkerUTS, Sum>, Serializable {
    * accommodate the given tree if necessary.
    */
   @Override
-  public void merge(MultiworkerUTS b) {
+  public void merge(MultiworkerUTSsplit3 b) {
     final int s = currentDepth + b.currentDepth;
     while (s > depth.length) {
       grow();
@@ -474,23 +477,34 @@ public class MultiworkerUTS implements Bag<MultiworkerUTS, Sum>, Serializable {
    * explore to an instance which is then returned.
    */
   @Override
-  public MultiworkerUTS split(boolean takeAll) {
-    int s = 0;
-    int t = 0;
+  public MultiworkerUTSsplit3 split(boolean takeAll) {
+    int s = 0; // Counter of location where branches
+    int t = 0; // Counter of total available branches
+    int lastRestartIndex = Integer.MAX_VALUE; // RestartIndex of the last
+                                              // partial tree exploration
+    int candidateRestartIndex = Integer.MAX_VALUE;
+    int prevDepth = Integer.MAX_VALUE;
     for (int i = 0; i < currentDepth; ++i) {
+      if (depth[i] <= prevDepth) {
+        candidateRestartIndex = i;
+      }
+      prevDepth = depth[i];
       final int nodesRemaining = upper[i] - lower[i];
       if (nodesRemaining >= 1) {
         if (nodesRemaining >= 2) {
           ++s;
+          // A candidate is confirmed IFF there is at least one level in the
+          // partial exploration where there are two branches
+          lastRestartIndex = candidateRestartIndex;
         }
         ++t;
       }
     }
-    final MultiworkerUTS split;
+    final MultiworkerUTSsplit3 split;
     if (takeAll && s == 0) {
       // Special case where the bag cannot be split. The whole content of this
       // bag is given away as a result.
-      split = new MultiworkerUTS(t, den);
+      split = new MultiworkerUTSsplit3(t, den);
       for (int i = 0; i < currentDepth; ++i) {
         final int p = upper[i] - lower[i];
         if (p >= 1) { // Copy only the nodes available for exploration
@@ -502,9 +516,22 @@ public class MultiworkerUTS implements Bag<MultiworkerUTS, Sum>, Serializable {
         }
       }
       currentDepth = 0; // This bag is now empty
+    } else if (takeAll) {
+      // Split the bag on the last partial exploration
+      split = new MultiworkerUTSsplit3(s, den);
+      for (int i = lastRestartIndex; i < currentDepth; ++i) {
+        final int p = upper[i] - lower[i];
+        if (p >= 2) {
+          System.arraycopy(hash, i * 20, split.hash, split.currentDepth * 20,
+              20);
+          split.depth[split.currentDepth] = depth[i];
+          split.upper[split.currentDepth] = upper[i];
+          split.lower[split.currentDepth++] = upper[i] -= p / 2;
+        }
+      }
     } else {
       // Split the bag as per usual
-      split = new MultiworkerUTS(s, den);
+      split = new MultiworkerUTSsplit3(s, den);
       for (int i = 0; i < currentDepth; ++i) {
         final int p = upper[i] - lower[i];
         if (p >= 2) {

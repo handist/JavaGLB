@@ -16,47 +16,51 @@
 ####################### THINGS TO EVALUATE ##########################
 # PARAMETERS CUSTOMIZABLE IN SCRIPT
 # Fixed grain sizes to check
-FIXED_GRAINS="8 32"
+FIXED_GRAINS="8 32 128 512 2048 8192 32768 131072 524288 2097152"
+#FIXED_GRAINS="2048"
 # Tuners to evaluate
-TUNERS=handist.glb.tuning.Ntuner
+TUNERS="handist.glb.tuning.Ntuner handist.glb.tuning.Newtuner14 handist.glb.tuning.Newtuner13 handist.glb.tuning.Newtuner12 handist.glb.tuning.Newtuner11"
 ######################## PROGRAM ARGUMENTS ##########################
+DEFAULT_REPS=5
 # NQueens arguments
-NQUEENS_ARGS="-n 14 -w 12"
+NQUEENS_ARGS="-n 18 -w 13"
+NQUEENS_REPS=$DEFAULT_REPS
 # Pentomino arguments
-PENTOMINO_ARGS="-w 10 -h 6"
+PENTOMINO_ARGS="-w 9 -h 10"
+PENTOMINO_REPS=$DEFAULT_REPS
 # TSP arguments (problem file, subset of citites)
 TSP_ARGS="-f posner40.atsp -s 24"
+TSP_REPS=10
 # UTS arguments (branching factor and depth)
-UTS_ARGS="-b 4 -d 13"
+UTS_ARGS="-b 4 -d 17"
+UTS_REPS=$DEFAULT_REPS
 ######################### GLB CONFIGURATION #########################
-JAVAGLB_JARS=${JAVAGLB_JARS}
-JAVA_NATIVE_LIBRARIES=${JAVAGLB_JARS}
-JAVAGLB_PLACES=1
-JAVAGLB_WORKERS=4
-JAVAGLB_CORE_RESTRICTION="0-3"
-
+JAVAGLB_JARPATH=/home/patrick/apgaslibs
+JAVA_NATIVE_LIBRARIES=/home/patrick/mpijava/lib
+PLACES=1
+WORKERS=24
+CORE_RESTRICTION="0-23"
+TIMEOUT=10m
+PROC_PER_HOST=1
+HOSTFILE=$2
 
 # Exporting the configuration for it to be available in the scripts
-echo "### Configuration"
-echo "# Path to JARs:     $JAVAGLB_JARS contains the following"
-ls -l $JAVAGLB_JARS
-export JAVAGLB_JARPATH=$JAVAGLB_JARS
-echo "# Native libraries path"
-export JAVA_NATIVE_LIBRARIES=${JAVA_NATIVE_LIBRARIES} 
-echo "# Nb of hosts:      $JAVAGLB_PLACES"
-export JAVAGLB_PLACES=$JAVAGLB_PLACES
-echo "# Nb of workers:    $JAVAGLB_WORKERS"
-export JAVAGLB_WORKERS=$JAVAGLB_WORKERS
-echo "# Core constraints: $JAVAGLB_CORE_RESTRICTION"
-export JAVAGLB_CORE_RESTRICTION=$JAVAGLB_CORE_RESTRICTION
+echo "###################### Configuration ##########################"
+echo "# Path to JARs:     $JAVAGLB_JARPATH contains the following"
+ls -l $JAVAGLB_JARS | sed -e '1d'
+echo "# Native libraries path: ${JAVA_NATIVE_LIBRARIES} which contains the following"
+ls -l ${JAVA_NATIVE_LIBRARIES} | sed -e '1d'
+echo "# Nb of hosts:      $PLACES"
+echo "# Nb of workers:    $WORKERS"
+echo "# Core constraints: $CORE_RESTRICTION"
 echo "# Hostfile:         $2"
-export JAVAGLB_HOSTFILE=$2
+head -n $PLACES $HOSTFILE
 
 #####################################################################
-echo "Checking presence of script files"
+echo "############# Checking presence of script files ###############"
 SCRIPTDIR=`dirname $0`
 
-for script in NQueens.sh NQueens-tuner.sh Pentomino.sh Pentomino-tuner.sh TSP.sh TSP-tuner.sh UTS.sh UTS-tuner.sh ScriptLauncher.sh
+for script in grainProgram.sh tunerProgram.sh ScriptLauncher.sh
 do
 	if [[ -f $SCRIPTDIR/$script ]]
 	then
@@ -68,57 +72,45 @@ do
 	fi
 done
 
-echo "Creating directories"
+####################################################################
+echo "#################### Creating directories ####################"
 DIR=$1
 PREFIX=$1
 shift
-mkdir $DIR
+echo "# - $DIR `mkdir $DIR 2>&1`"
 cd $DIR
-mkdir Pentomino UTS TSP NQueens
+for d in Pentomino UTS TSP NQueens
+do
+    echo "# - $DIR/$d `mkdir $d 2>&1`"
+done
 cd ..
+
 ################# LAUNCHING NQUEENS BENCHMARK #######################
 echo "Launching NQueens with arguments: $NQUEENS_ARGS"
-export NQUEENS_ARGS=$NQUEENS_ARGS
+MAIN=handist.glb.examples.nqueens.ParallelNQueens
+ARGS=$NQUEENS_ARGS
 
-# Launch fixed grains executions
-echo "ScriptLauncher.sh NQueens.sh 5 ${PREFIX}_NQueens-fixedGrain $FIXED_GRAINS"
-bash $SCRIPTDIR/ScriptLauncher.sh $SCRIPTDIR/NQueens.sh 5 $DIR/NQueens/${PREFIX}_NQueens-fixedGrain $FIXED_GRAINS
-# Launch tuner executions
-echo "ScriptLauncher.sh NQueens-tuner.sh 5 ${PREFIX}_NQueens-tuner $TUNERS"
-bash $SCRIPTDIR/ScriptLauncher.sh $SCRIPTDIR/NQueens-tuner.sh 5 $DIR/NQueens/${PREFIX}_NQueens-tuner $TUNERS
-#####################################################################
-################# LAUNCHING NQUEENS BENCHMARK #######################
+. ./ScriptLauncher.sh grainProgram.sh $NQUEENS_REPS $DIR/NQueens/${PREFIX}_NQueens-fixedGrain $FIXED_GRAINS
+. ./ScriptLauncher.sh tunerProgram.sh $NQUEENS_REPS $DIR/NQueens/${PREFIX}_NQueens-tuner $TUNERS
+################ LAUNCHING PENTOMINO BENCHMARK ######################
 echo "Launching Pentomino with arguments: $PENTOMINO_ARGS"
-export PENTOMINO_ARGS=$PENTOMINO_ARGS
+MAIN=handist.glb.examples.pentomino.ParallelPentomino
+ARGS=$PENTOMINO_ARGS
 
-# Launch fixed grains executions
-echo "ScriptLauncher.sh Pentomino.sh 5 ${PREFIX}_Pentomino-fixedGrain $FIXED_GRAINS"
-bash $SCRIPTDIR/ScriptLauncher.sh $SCRIPTDIR/Pentomino.sh 5 $DIR/Pentomino/${PREFIX}_Pentomino-fixedGrain $FIXED_GRAINS
-# Launch tuner executions
-echo "ScriptLauncher.sh Pentomino-tuner.sh 5 ${PREFIX}_Pentomino-tuner $TUNERS"
-bash $SCRIPTDIR/ScriptLauncher.sh $SCRIPTDIR/Pentomino-tuner.sh 5 $DIR/Pentomino/${PREFIX}_Pentomino-tuner $TUNERS
-#####################################################################
-
+. ./ScriptLauncher.sh $SCRIPTDIR/grainProgram.sh $PENTOMINO_REPS $DIR/Pentomino/${PREFIX}_Pentomino-fixedGrain $FIXED_GRAINS
+. ./ScriptLauncher.sh $SCRIPTDIR/tunerProgram.sh $PENTOMINO_REPS $DIR/Pentomino/${PREFIX}_Pentomino-tuner $TUNERS
 ##################### LAUNCHING UTS BENCHMARK #######################
 echo "Launching UTS with arguments: $UTS_ARGS"
-export UTS_ARGS=$UTS_ARGS
+MAIN=handist.glb.examples.uts.MultiworkerUTS
+ARGS=$UTS_ARGS
 
-# Launch fixed grains executions
-echo "ScriptLauncher.sh UTS.sh 5 ${PREFIX}_UTS-fixedGrain $FIXED_GRAINS"
-bash $SCRIPTDIR/ScriptLauncher.sh $SCRIPTDIR/UTS.sh 5 $DIR/UTS/${PREFIX}_UTS-fixedGrain $FIXED_GRAINS
-# Launch tuner executions
-echo "ScriptLauncher.sh UTS-tuner.sh 5 ${PREFIX}_UTS-tuner $TUNERS"
-bash $SCRIPTDIR/ScriptLauncher.sh $SCRIPTDIR/UTS-tuner.sh 5 $DIR/UTS/${PREFIX}_UTS-tuner $TUNERS
-#####################################################################
-
+. ./ScriptLauncher.sh $SCRIPTDIR/grainProgram.sh $UTS_REPS $DIR/UTS/${PREFIX}_UTS-fixedGrain $FIXED_GRAINS
+. ./ScriptLauncher.sh $SCRIPTDIR/tunerProgram.sh $UTS_REPS $DIR/UTS/${PREFIX}_UTS-tuner $TUNERS
 #################### LAUNCHING TSP BENCHMARK ########################
 echo "Launching TSP with arguments: $TSP_ARGS"
-export TSP_ARGS=$TSP_ARGS
+MAIN=handist.glb.examples.tsp.GlobalTsp
+ARGS=$TSP_ARGS
 
-# Launch fixed grains executions
-echo "ScriptLauncher.sh TSP.sh 10 ${PREFIX}_TSP-fixedGrain $FIXED_GRAINS"
-bash $SCRIPTDIR/ScriptLauncher.sh $SCRIPTDIR/TSP.sh 10 $DIR/TSP/${PREFIX}_TSP-fixedGrain $FIXED_GRAINS
-# Launch tuner executions
-echo "ScriptLauncher.sh TSP-tuner.sh 10 ${PREFIX}_TSP-tuner $TUNERS"
-bash $SCRIPTDIR/ScriptLauncher.sh $SCRIPTDIR/TSP-tuner.sh 10 $DIR/TSP/${PREFIX}_TSP-tuner $TUNERS
-#####################################################################
+. ./ScriptLauncher.sh $SCRIPTDIR/grainProgram.sh $TSP_REPS $DIR/TSP/${PREFIX}_TSP-fixedGrain $FIXED_GRAINS
+. ./ScriptLauncher.sh $SCRIPTDIR/tunerProgram.sh $TSP_REPS $DIR/TSP/${PREFIX}_TSP-tuner $TUNERS
+

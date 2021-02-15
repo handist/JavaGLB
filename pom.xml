@@ -8,10 +8,10 @@
 	<groupId>handist</groupId>
 	<artifactId>glb</artifactId>
 	<packaging>jar</packaging>
-	<version>-SNAPSHOT</version>
+	<version>1.0</version>
 
 	<name>Java GLB</name>
-	<description>A distributed global load balancer</description>
+	<description>A Lifeline-based Distributed Global Load Balancer</description>
 	<url>https://github.com/handist</url>
 
 	<properties>
@@ -41,7 +41,7 @@
 		<dependency>
 			<groupId>junit</groupId>
 			<artifactId>junit</artifactId>
-			<version>4.13</version>
+			<version>4.13.1</version>
 			<scope>test</scope>
 		</dependency>
 

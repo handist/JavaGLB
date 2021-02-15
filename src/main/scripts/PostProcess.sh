@@ -4,33 +4,49 @@
 # Script in charge of compiling the results of the       #
 # benchmarks into csv files. It will also generate plots #
 # of the grain chosen by the tuner for every tuner       #
-# execution.                                             #
+# execution using a gnuplot script                       #
 ##########################################################
 # ARGUMENTS                                              #
 # $1: directory name in which the files to process lie   #
+# $2: number of hosts used in the executions             #
 ##########################################################
-# CONFIGURATION
-# Fixed grain sizes to process
+
+##########################################################
+# CONFIGURATION                                          #
+##########################################################
+#-------------------------- Fixed grain sizes to process #
 FIXED_GRAINS="8 32 128 512 2048 8192 32768 131072 524288 2097152"
-# Tuners to process
+#FIXED_GRAINS=""
+#------------------------------------- Tuners to process #
+TUNERS="handist.glb.tuning.Ntuner handist.glb.tuning.Newtuner13"
 #TUNERS=""
-TUNERS="handist.glb.tuning.Ntuner handist.glb.tuning.KamadaTuner"
+# ---------------------------------- Problems to process #
+PROBLEMS="NQueens Pentomino UTS TSP UTSsplit1 UTSsplit3"
+##########################################################
+
+##########################################################
+# ARGUMENT PARSING                                       #
 ##########################################################
 PREFIX=${1%/}
 DIR=$1
-NB_HOSTS=7 #Is actually 4 but for gnuplot script, it's [0,3]
-let HOSTS=$NB_HOSTS+1
+HOSTS=$2 #$NB_HOSTS+1
+let NB_HOSTS=HOSTS-1  # This is used in gnuplot script in a for loop from [0,NB_HOST]
+echo "Hosts: $HOSTS for gnuplot: $NB_HOSTS"
+##########################################################
+
+##########################################################
+# CHECKING FOR FILE PRESENCE                             #
 ##########################################################
 echo "Checking directory structure and file presence"
 cd $DIR
-for problem in NQueens Pentomino UTS TSP
+for problem in $PROBLEMS
 do
 	if [[ -d $problem ]]
 	then
 		echo "[OK] Directory $problem present"
 		cd $problem
 		runs=5
-		if [ $problem == "TSP" ]
+		if [ $problem == "TSP" ] || [ $problem == "UTSsplit2" ]
 		then
 		    runs=10
 		fi
@@ -44,6 +60,7 @@ do
 					echo "[OK] file ${problem}/$FILE found"
 				else
 				    echo "[KO] file ${problem}/$FILE not found"
+		      		    # touch $FILE
 				    exit
 				fi
 			done
@@ -55,6 +72,7 @@ do
 				    echo "[OK] file ${problem}/$FILE found"
 				else
 				    echo "[KO] file ${problem}/$FILE not found"
+				    # touch $FILE
 				    exit
 				fi
 			done
@@ -67,10 +85,12 @@ do
 done
 cd ..
 ##########################################################
+
+##########################################################
 # PARSING each problem's files                           #
 ##########################################################
 
-for problem in Pentomino UTS TSP NQueens
+for problem in $PROBLEMS
 do
 	runs=5
 	if [ $problem == "TSP" ]
@@ -82,18 +102,15 @@ do
 	# Extracting more detailed information on queue accesses
 	. ./ExecTimesAndQueueAccesses.sh $problem ${DIR} $runs $FIXED_GRAINS $TUNERS
 done
+##########################################################
 
-
-#############################################################
-# GENERATING Grain size / Time plots                        #
-#############################################################
-
-mkdir -p TunerPlots
-
-for problem in Pentomino NQueens Pentomino UTS TSP
+##########################################################
+# GENERATING Grain size / Time plots with gnuplot        #
+##########################################################
+for problem in $PROBLEMS
 do
 	runs=5
-	if [ $problem == "TSP" ]
+	if [ $problem == "TSP" ] || [ $problem == "UTSsplit2" ]
 	then
 	    runs=10
 	fi
@@ -109,12 +126,17 @@ do
 			#echo $EXEC_TIME
 			#cat data.csv
 
-			# Call the gnuplot script to generate image
+			# Call the gnuplot script to generate image if not present already
 			OUTPUT=$DIR/$problem/${PREFIX}_${problem}-${t}-GrainEvolution_Run${r}.png
-			echo "Creating $OUTPUT"
-			gnuplot -c TunerGrain.plt $EXEC_TIME $NB_HOSTS data.csv > $OUTPUT
+			if [[ -f $OUTPUT ]]
+			then
+			    echo "--Skipping $OUTPUT"
+			else
+			    echo "++Creating $OUTPUT"
+			    gnuplot -c TunerGrain.plt $EXEC_TIME $NB_HOSTS data.csv > $OUTPUT			    
+			fi
+			
 		done
 	done
-
-	cp $DIR/${problem}/*.png TunerPlots
 done
+##########################################################

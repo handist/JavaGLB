@@ -1,14 +1,14 @@
-/*
- *  This file is part of the Handy Tools for Distributed Computing project
- *  HanDist (https://github.com/handist)
+/*******************************************************************************
+ * This file is part of the Handy Tools for Distributed Computing project
+ * HanDist (https:/github.com/handist)
  *
- *  This file is licensed to You under the Eclipse Public License (EPL);
- *  You may not use this file except in compliance with the License.
- *  You may obtain a copy of the License at
- *      http://www.opensource.org/licenses/eclipse-1.0.php
+ * This file is licensed to You under the Eclipse Public License (EPL);
+ * You may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ * 	https://www.opensource.org/licenses/eclipse-1.0.php
  *
- *  (C) copyright CS29 Fine 2018-2019.
- */
+ * (C) copyright CS29 Fine 2018-2021
+ ******************************************************************************/
 package handist.glb;
 
 import static apgas.Constructs.*;
@@ -728,7 +728,7 @@ public class GLBcomputer extends PlaceLocalObject {
          */
         synchronized (intraPlaceQueue) {
           intraPlaceQueue.merge(loot);
-          logger.intraQueueFed.incrementAndGet();
+          logger.intraQueueFedByLifeline.incrementAndGet();
           intraQueueEmpty = false;
         }
 
@@ -1195,6 +1195,14 @@ public class GLBcomputer extends PlaceLocalObject {
   }
 
   /**
+   * May be called by a tuner to spuriously launch the feeding of the intra-bag
+   */
+  public void spuriousIntraBagEmptied() {
+    logger.intraQueueEmptied.incrementAndGet();
+    intraQueueEmpty = true;
+  }
+
+  /**
    * Method called asynchronously by a thief to steal work from this place.
    * <p>
    *
@@ -1249,7 +1257,7 @@ public class GLBcomputer extends PlaceLocalObject {
         tunerThreadExcited = true;
         return;
       }
-      lastCall = tuner.tune(logger, CONFIGURATION);
+      lastCall = tuner.tune(logger, CONFIGURATION, this);
     }
   }
 
@@ -1375,7 +1383,7 @@ public class GLBcomputer extends PlaceLocalObject {
           if (bag.isSplittable()) {
             synchronized (intraPlaceQueue) {
               intraPlaceQueue.merge(bag.split(false));
-              logger.intraQueueFed.incrementAndGet();
+              logger.intraQueueFedByWorker.incrementAndGet();
               intraQueueEmpty = intraPlaceQueue.isEmpty();
             }
           }
@@ -1459,7 +1467,7 @@ public class GLBcomputer extends PlaceLocalObject {
               if (intraPlaceQueue.isEmpty()) {
                 // Flag update and event log
                 intraQueueEmpty = true;
-                logger.intraQueueEmptied++;
+                logger.intraQueueEmptied.getAndIncrement();
               }
               logger.intraQueueSplit.incrementAndGet();
             }

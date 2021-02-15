@@ -1,14 +1,14 @@
-/**
- *  This file is part of the Handy Tools for Distributed Computing project
- *  HanDist (https://github.com/handist)
+/*******************************************************************************
+ * This file is part of the Handy Tools for Distributed Computing project
+ * HanDist (https:/github.com/handist)
  *
- *  This file is licensed to You under the Eclipse Public License (EPL);
- *  You may not use this file except in compliance with the License.
- *  You may obtain a copy of the License at
- *      http://www.opensource.org/licenses/eclipse-1.0.php
+ * This file is licensed to You under the Eclipse Public License (EPL);
+ * You may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ * 	https://www.opensource.org/licenses/eclipse-1.0.php
  *
- *  (C) copyright CS29 Fine 2018-2019.
- */
+ * (C) copyright CS29 Fine 2018-2021
+ ******************************************************************************/
 package handist.glb.examples.pentomino;
 
 import java.io.Serializable;
@@ -105,7 +105,7 @@ public class Pentomino implements Bag<Pentomino, Answer>, Serializable {
      * Copy constructor
      *
      * @param pp
-     *             instance to copy
+     *          instance to copy
      */
     public PiecePlaced(PiecePlaced pp) {
       variation = pp.variation;
@@ -129,9 +129,9 @@ public class Pentomino implements Bag<Pentomino, Answer>, Serializable {
    * dimensions of the board.
    *
    * @param args
-   *               first argument should be the width of the board, second
-   *               argument its height, third a boolean indicating if symmetries
-   *               should be removed
+   *          first argument should be the width of the board, second argument
+   *          its height, third a boolean indicating if symmetries should be
+   *          removed
    */
   public static void main(String[] args) {
     int WIDTH, HEIGHT;
@@ -311,7 +311,7 @@ public class Pentomino implements Bag<Pentomino, Answer>, Serializable {
    * the only necessary members when splitting the Pentomino problem
    *
    * @param t
-   *            type of the computation at hand
+   *          type of the computation at hand
    */
   public Pentomino(PentominoType t) {
     pentominoType = t;
@@ -333,12 +333,12 @@ public class Pentomino implements Bag<Pentomino, Answer>, Serializable {
    * Constructor of a pentomino exploration of the specified size
    *
    * @param type
-   *               type of pentomino problem
+   *          type of pentomino problem
    *
    * @param w
-   *               width of the rectangle in which to fit the pieces
+   *          width of the rectangle in which to fit the pieces
    * @param h
-   *               height of the rectangle in which to fit the pieces
+   *          height of the rectangle in which to fit the pieces
    */
   public Pentomino(PentominoType type, int w, int h) {
     pentominoType = type;
@@ -374,11 +374,11 @@ public class Pentomino implements Bag<Pentomino, Answer>, Serializable {
    * place. As a side effect, it also sets the variation that is going to be
    * tried in the appropriate {@link PiecePlaced} instance.
    *
-   * @param  number
-   *                  the number of the variation that needs to be attempted as
-   *                  indicated in array {@link #low}.
-   * @return        the index of the piece that should be placed next in array
-   *                {@link #pieces}
+   * @param number
+   *          the number of the variation that needs to be attempted as
+   *          indicated in array {@link #low}.
+   * @return the index of the piece that should be placed next in array
+   *         {@link #pieces}
    */
   private int getRemaining(int number) {
     int ppIndex = 0;
@@ -447,17 +447,15 @@ public class Pentomino implements Bag<Pentomino, Answer>, Serializable {
    * Initializes the current instance to contain the entire exploration.
    *
    * @param type
-   *                            type of the pentomino to initialize
+   *          type of the pentomino to initialize
    * @param noSymmetries
-   *                            indicates if the symmetry removal should be
-   *                            applied or not, {@code true} to remove
-   *                            symmetries from the problem
+   *          indicates if the symmetry removal should be applied or not,
+   *          {@code true} to remove symmetries from the problem
    * @param specificPositions
-   *                            indicates which initial positions of piece X
-   *                            should be included in the search. This argument
-   *                            is ignored if the symmetries are not removed. If
-   *                            null, all possible initial positions of Piece X
-   *                            are included in the exploration.
+   *          indicates which initial positions of piece X should be included in
+   *          the search. This argument is ignored if the symmetries are not
+   *          removed. If null, all possible initial positions of Piece X are
+   *          included in the exploration.
    */
   public void init(PentominoType type, boolean noSymmetries,
       int[] specificPositions) {
@@ -573,7 +571,7 @@ public class Pentomino implements Bag<Pentomino, Answer>, Serializable {
    * the specified pentomino problem (standard pentomino or one-sided pentomino)
    *
    * @param type
-   *               type of the pentomino whose pieces need to be initialized
+   *          type of the pentomino whose pieces need to be initialized
    */
   private void initPieces(PentominoType type) {
     pieces = new Piece[NB_PIECE]; // NB_PIECE is assumed to be set to the
@@ -675,9 +673,9 @@ public class Pentomino implements Bag<Pentomino, Answer>, Serializable {
   /**
    * Returns the number of pieces left to explore at the specified level
    *
-   * @param  index
-   *                 level of exploration in the tree to check
-   * @return       the number of pieces left to explore at the specified level
+   * @param index
+   *          level of exploration in the tree to check
+   * @return the number of pieces left to explore at the specified level
    */
   private int optionsLeft(int index) {
     return high[index] - low[index];
@@ -715,7 +713,7 @@ public class Pentomino implements Bag<Pentomino, Answer>, Serializable {
    * Puts the exploration state of the given pentomino into the reserve
    *
    * @param p
-   *            the exploration to keep in the reserve to process it later
+   *          the exploration to keep in the reserve to process it later
    */
   public void putInReserve(Pentomino p) {
     reserve.add(p);
@@ -856,7 +854,7 @@ public class Pentomino implements Bag<Pentomino, Answer>, Serializable {
    * Discards the current exploration and replaces it with the given instance
    *
    * @param p
-   *            exploration to continue from now on
+   *          exploration to continue from now on
    */
   public void restoreToExploration(Pentomino p) {
 

@@ -1,14 +1,14 @@
-/*
- *  This file is part of the Handy Tools for Distributed Computing project
- *  HanDist (https://github.com/handist)
+/*******************************************************************************
+ * This file is part of the Handy Tools for Distributed Computing project
+ * HanDist (https:/github.com/handist)
  *
- *  This file is licensed to You under the Eclipse Public License (EPL);
- *  You may not use this file except in compliance with the License.
- *  You may obtain a copy of the License at
- *      http://www.opensource.org/licenses/eclipse-1.0.php
+ * This file is licensed to You under the Eclipse Public License (EPL);
+ * You may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ * 	https://www.opensource.org/licenses/eclipse-1.0.php
  *
- *  (C) copyright CS29 Fine 2018-2019.
- */
+ * (C) copyright CS29 Fine 2018-2021
+ ******************************************************************************/
 package handist.glb.tuning;
 
 import handist.glb.Configuration;
@@ -22,9 +22,9 @@ import handist.glb.PlaceLogger;
  * The various parameters presented in the {@link Configuration} class except
  * for the lifeline strategy can be modified during the computation by
  * implementations of this interface. Method
- * {@link #tune(PlaceLogger, Configuration)} will be called when the time
- * defined by {@value Configuration#GLBM_TUNING_INTERVAL} elapses to provide an
- * opportunity to modify the parameters currently in use by the
+ * {@link #tune(PlaceLogger, Configuration, GLBcomputer)} will be called when
+ * the time defined by {@value Configuration#GLBM_TUNING_INTERVAL} elapses to
+ * provide an opportunity to modify the parameters currently in use by the
  * {@link GLBcomputer} class.
  *
  * @author Patrick Finnerty
@@ -39,13 +39,13 @@ public interface Tuner {
    * timestamps or other information) at the time the place starting working
    * again.
    *
-   * @param  l
-   *             the {@link PlaceLogger} instance which contains the runtime
-   *             information about the place
-   * @param  c
-   *             the {@link Configuration} instance used by the GLB
-   * @return   the timestamp at which the method was called using
-   *           {@link System#nanoTime()}
+   * @param l
+   *          the {@link PlaceLogger} instance which contains the runtime
+   *          information about the place
+   * @param c
+   *          the {@link Configuration} instance used by the GLB
+   * @return the timestamp at which the method was called using
+   *         {@link System#nanoTime()}
    */
   public long placeLaunched(PlaceLogger l, Configuration c);
 
@@ -62,14 +62,16 @@ public interface Tuner {
    * runs the tuner until it is time to run the tuner again.
    *
    *
-   * @param  l
-   *             contains information about the runtime of this place
-   * @param  c
-   *             instance in which modifications to the parameters of the GLB
-   *             can be registered
-   * @return   the timestamp at which the method was called using
-   *           {@link System#nanoTime()}
+   * @param l
+   *          contains information about the runtime of this place
+   * @param c
+   *          instance in which modifications to the parameters of the GLB can
+   *          be registered
+   * @param g
+   *          local computer on which the tuner may act
+   * @return the timestamp at which the method was called using
+   *         {@link System#nanoTime()}
    */
-  public long tune(PlaceLogger l, Configuration c);
+  public long tune(PlaceLogger l, Configuration c, GLBcomputer g);
 
 }

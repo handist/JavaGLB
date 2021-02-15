@@ -35,12 +35,13 @@ touch ${OUTPUT}
 # - The host number of the queue events of this line
 # - The execution time of the program (identical for all hosts of the same run
 # - The number of times the intra-bag of the host was "split"
-# - The number of times the intra-bag of the host was "merged"
+# - The number of times the intra-bag of the host was "merged" by a worker
+# - The number of times the intra-bag of the host was "merged" by a lifeline
 # - The number of times the intra-bag of the host was "emptied"
 # - The number of times the inter-bag of the host was "split"
 # - The number of times the inter-bag of the host was "merged"
 # - The number of times the inter-bag of the host was "emptied"
-LINE="Program;Run;Host;Exec Time;Intra-bag split;Intra-bag merge;Intra-bag empty;Inter-bag split;Inter-bag merge;Inter-bag empty"
+LINE="Program;Run;Host;Exec Time;Intra-bag split;Intra-bag merge worker;Intra-bag merge lifeline;Intra-bag empty;Inter-bag split;Inter-bag merge;Inter-bag empty"
 echo $LINE > ${OUTPUT}
 
 #echo $LINE
@@ -51,7 +52,7 @@ do
     do
 	FILE=`ls ${DIR}/$PROBLEM/*-param${g}_Run${r}.txt`
 	COMPTIME=`grep "COMPUTATION TIME" $FILE | sed -r -e 's/.*?COMPUTATION TIME;(.*?);/\1/'`
-	sed -e '1,/Place;Worker/d; /WORKER DATA/,$d' $FILE | head -n $HOSTS | sed -n -e "s/^\([0-9][0-9]*\);[0-9]*;\([0-9]*;[0-9]*;[0-9]*;[0-9]*;[0-9]*;[0-9]*\);.*/ $g ; $r ; \1 ; $COMPTIME ; \2/p" >> ${OUTPUT}
+	sed -e '1,/Place;Worker/d; /WORKER DATA/,$d' $FILE | head -n $HOSTS | sed -n -e "s/^\([0-9][0-9]*\);[0-9]*;\([0-9]*;[0-9]*;[0-9]*;[0-9]*;[0-9]*;[0-9]*;[0-9]*\);.*/ $g ; $r ; \1 ; $COMPTIME ; \2/p" >> ${OUTPUT}
     done
 done
 

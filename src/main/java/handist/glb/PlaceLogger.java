@@ -1,14 +1,14 @@
-/*
- *  This file is part of the Handy Tools for Distributed Computing project
- *  HanDist (https://github.com/handist)
+/*******************************************************************************
+ * This file is part of the Handy Tools for Distributed Computing project
+ * HanDist (https:/github.com/handist)
  *
- *  This file is licensed to You under the Eclipse Public License (EPL);
- *  You may not use this file except in compliance with the License.
- *  You may obtain a copy of the License at
- *      http://www.opensource.org/licenses/eclipse-1.0.php
+ * This file is licensed to You under the Eclipse Public License (EPL);
+ * You may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ * 	https://www.opensource.org/licenses/eclipse-1.0.php
  *
- *  (C) copyright CS29 Fine 2018-2019.
- */
+ * (C) copyright CS29 Fine 2018-2021
+ ******************************************************************************/
 package handist.glb;
 
 import java.io.PrintStream;
@@ -88,11 +88,23 @@ public class PlaceLogger implements Serializable {
   /** Records the number of times some work was taken from the inter queue */
   public AtomicLong interQueueSplit = new AtomicLong(0);
 
-  /** Counter for the number of times the inter queue was emptied */
-  public long intraQueueEmptied = 0;
+  /** Counter for the number of times the intra queue was emptied */
+  public AtomicLong intraQueueEmptied = new AtomicLong(0);
 
-  /** Records the number of times some work was put into the intra queue */
-  public AtomicLong intraQueueFed = new AtomicLong(0);
+  /**
+   * Records the number of times some work was put into the intra queue by a
+   * worker
+   */
+  public AtomicLong intraQueueFedByWorker = new AtomicLong(0);
+
+  /**
+   * Records the number of times some work was put into the intra queue by a
+   * lifeline
+   * <p>
+   * This happens when the answer from a lifeline reaches the host when another
+   * one has already placed work back into it.
+   */
+  public AtomicLong intraQueueFedByLifeline = new AtomicLong(0);
 
   /** Records the number of times some work was taken from the intra queue */
   public AtomicLong intraQueueSplit = new AtomicLong(0);

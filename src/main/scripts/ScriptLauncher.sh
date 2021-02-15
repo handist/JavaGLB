@@ -15,21 +15,20 @@ PROGRAM=$1
 shift
 REPETITIONS=$1
 shift
-PREFIX=$1
+OUTPUT_PREFIX=$1
 shift
 
 for param in $@
 do
 	STAMP=`date +"%m-%d-%y %R"`
-	echo "[$STAMP] Starting executions with parameter $param"
+	echo "[$STAMP] Starting $PROGRAM $MAIN $ARGS with parameter $param"
 
 	for (( run=1; run<=$REPETITIONS; run++))
 	do
 		STAMP=`date +"%m-%d-%y %R"`
-		echo "[$STAMP] Launching $PROGRAM $param run ${run}"
-		nohup bash $PROGRAM $param > ${PREFIX}-param${param}_Run${run}.txt 2> ${PREFIX}-param${param}_Run${run}.err.txt
+		echo "[$STAMP] Run $run"
+		. ./$PROGRAM $param > ${OUTPUT_PREFIX}-param${param}_Run${run}.txt 2> ${OUTPUT_PREFIX}-param${param}_Run${run}.err.txt
 	done
 
 	STAMP=`date +"%m-%d-%y %R"`
-	echo "[$STAMP] Executions with parameter $param completed"
 done

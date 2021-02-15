@@ -1,14 +1,14 @@
-/*
- *  This file is part of the Handy Tools for Distributed Computing project
- *  HanDist (https://github.com/handist)
+/*******************************************************************************
+ * This file is part of the Handy Tools for Distributed Computing project
+ * HanDist (https:/github.com/handist)
  *
- *  This file is licensed to You under the Eclipse Public License (EPL);
- *  You may not use this file except in compliance with the License.
- *  You may obtain a copy of the License at
- *      http://www.opensource.org/licenses/eclipse-1.0.php
+ * This file is licensed to You under the Eclipse Public License (EPL);
+ * You may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ * 	https://www.opensource.org/licenses/eclipse-1.0.php
  *
- *  (C) copyright CS29 Fine 2018-2019.
- */
+ * (C) copyright CS29 Fine 2018-2021
+ ******************************************************************************/
 package handist.glb;
 
 import java.io.Serializable;
@@ -168,8 +168,8 @@ public final class Configuration implements Serializable {
 
   /**
    * Number of nanoseconds required to elapse between two calls to the parameter
-   * tuning method {@link Tuner#tune(PlaceLogger, Configuration)}. This value
-   * may be changed by the tuner.
+   * tuning method {@link Tuner#tune(PlaceLogger, Configuration, GLBcomputer)}.
+   * This value may be changed by the tuner.
    */
   public long t;
 
@@ -228,29 +228,28 @@ public final class Configuration implements Serializable {
    * conditions in which the GLB is set up.
    *
    * @param places
-   *                            number of places used in the computation
+   *          number of places used in the computation
    * @param workers
-   *                            number of concurrent workers at each place
+   *          number of concurrent workers at each place
    * @param workUnit
-   *                            amount of work performed by each worker before
-   *                            checking the runtime
+   *          amount of work performed by each worker before checking the
+   *          runtime
    * @param randomSteal
-   *                            maximum number of unsuccessful random steals
-   *                            before the place turns to the lifeline scheme to
-   *                            get some work
+   *          maximum number of unsuccessful random steals before the place
+   *          turns to the lifeline scheme to get some work
    * @param lifeline
-   *                            string of the class which provides the lifeline
-   *                            strategy to the GLB
+   *          string of the class which provides the lifeline strategy to the
+   *          GLB
    * @param tuningTimeout
-   *                            number of nanoseconds that need to elapse
-   *                            between two tuning of the GLB parameters
+   *          number of nanoseconds that need to elapse between two tuning of
+   *          the GLB parameters
    * @param tunerClass
-   *                            fully qualified domain space of the class
-   *                            implementing the parameter tuning
+   *          fully qualified domain space of the class implementing the
+   *          parameter tuning
    * @param whispererInterval
-   *                            interval at which the whisperer is called to
-   *                            possibly propagate the information contained in
-   *                            the local shared object to other processes
+   *          interval at which the whisperer is called to possibly propagate
+   *          the information contained in the local shared object to other
+   *          processes
    */
   protected Configuration(int places, int workers, int workUnit,
       int randomSteal, String lifeline, long tuningTimeout, String tunerClass,

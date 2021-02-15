@@ -1,14 +1,14 @@
-/*
- *  This file is part of the Handy Tools for Distributed Computing project
- *  HanDist (https://github.com/handist)
+/*******************************************************************************
+ * This file is part of the Handy Tools for Distributed Computing project
+ * HanDist (https:/github.com/handist)
  *
- *  This file is licensed to You under the Eclipse Public License (EPL);
- *  You may not use this file except in compliance with the License.
- *  You may obtain a copy of the License at
- *      http://www.opensource.org/licenses/eclipse-1.0.php
+ * This file is licensed to You under the Eclipse Public License (EPL);
+ * You may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ * 	https://www.opensource.org/licenses/eclipse-1.0.php
  *
- *  (C) copyright CS29 Fine 2018-2019.
- */
+ * (C) copyright CS29 Fine 2018-2021
+ ******************************************************************************/
 package handist.glb.examples.nqueens;
 
 import java.io.Serializable;
@@ -39,11 +39,11 @@ public class NQueens implements Bag<NQueens, Answer>, Serializable {
    * Generates a CoverMatrix instance of the N-Queens problem of the specified
    * size.
    *
-   * @param  size
-   *                the number of queens to place, also equal to the width and
-   *                height of the board used
-   * @return      a constructed {@link QCoverMatrix} instance that models the
-   *              N-Queens problem
+   * @param size
+   *          the number of queens to place, also equal to the width and height
+   *          of the board used
+   * @return a constructed {@link QCoverMatrix} instance that models the
+   *         N-Queens problem
    */
   public static QCoverMatrix generateCoverMatrix(int size) {
     final int nb_Diagonals = (size * 2) - 3;
@@ -106,7 +106,7 @@ public class NQueens implements Bag<NQueens, Answer>, Serializable {
    * specify the number of times the problem will be performed.
    *
    * @param args
-   *               size of the problem, optionally the number of repetitions
+   *          size of the problem, optionally the number of repetitions
    */
   public static void main(String[] args) {
     int N;
@@ -232,8 +232,7 @@ public class NQueens implements Bag<NQueens, Answer>, Serializable {
    * Constructs a new {@link NQueens} problem instance with the specified size
    *
    * @param size
-   *               the width of the board on which we are trying to place
-   *               queens.
+   *          the width of the board on which we are trying to place queens.
    */
   public NQueens(int size) {
     N = size;
@@ -262,9 +261,9 @@ public class NQueens implements Bag<NQueens, Answer>, Serializable {
   /**
    * Returns the number of branches to explore at the specified level.
    *
-   * @param  level
-   *                 the level to consider
-   * @return       the number of rows that are still candidate for exploration
+   * @param level
+   *          the level to consider
+   * @return the number of rows that are still candidate for exploration
    */
   private int choiceLeft(int level) {
     return high[level] - low[level];
@@ -350,7 +349,7 @@ public class NQueens implements Bag<NQueens, Answer>, Serializable {
    * be able to continue the exploration that was given as parameter.
    *
    * @param loot
-   *               the partial exploration to convert this instance to
+   *          the partial exploration to convert this instance to
    */
   void restore(NQueens loot) {
     stack = loot.stack;

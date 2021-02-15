@@ -18,75 +18,33 @@ import handist.glb.GLBcomputer;
 import handist.glb.PlaceLogger;
 
 /**
- * Tuner for parameter {@link Configuration#n} of the multithreaded global load
- * balancer.
- * <h2>General functioning</h2> The purpose of this class is to dynamically
- * adjust the grain size of the computation so that a balance is found between
- * excessive overhead and starvation.
- * <p>
- * The tuner evaluates too indicators relying on the data available in the
- * {@link PlaceLogger}. If one of the indicator indicates that the value should
- * be increased (resp. decreased) in two successive calls to the
- * {@link #tune(PlaceLogger, Configuration, GLBcomputer)} method, the value is
- * doubled (resp. halved). This confirmation mechanism helps counteract the fact
- * that the indicators are not perfect and can sometimes come to the wrong
- * conclusion.
- *
- * <h2>Indicators</h2>
- *
- * The indicator that the value of parameter {@link Configuration#n} is too
- * small is the ratio between the number of times some work was put into and
- * stolen from member intraPlaceQueue of {@link GLBcomputer}. If there are less
- * steals than twice the number of feeds into the queue, parameter N is judged
- * to be too small. This criteria relies on the assumption that the splitting
- * method implemented by the user always gives half of its content. In cases
- * where the grain size is too small, the shared queue of the load balancer gets
- * redundantly fed. Under the assumption that the queue gives away half of its
- * content, multiple feeding operation will be stolen away with comparatively
- * fewer steal operations.
- * <p>
- * The indicator used to identify situations where the parameter N is too large
- * relies on the amount of time spent with the maximum number of workers. If
- * less than 90% of the time since the last call to the tuner was spent with the
- * maximum number of workers, the value of {@link Configuration#n} is judged to
- * be too large.
- * <h2>Data gathering</h2> The tuner keeps track of the values held by the
- * {@link PlaceLogger} in its own members. When the
- * {@link #tune(PlaceLogger, Configuration, GLBcomputer)} method is called, the
- * difference between the current (new) values of the {@link PlaceLogger} is
- * computed. This makes the {@link Ntuner} make its decision on the most recent
- * logger data.
- *
- * <h2>Value increase and decrease</h2> When the decision is made to decrease
- * the value of {@link Configuration#n}, we divide it by 2 and add 1. This
- * guarantees that the value remains strictly positive. When the decision is
- * made to increase the value of {@link Configuration#n}, its current value is
- * doubled. We then perform a check to ensure that we did not overflow the
- * maximum possible value for the {@code int} type. If there was overflow, we
- * set the value to {@value Integer#MAX_VALUE}.
+ * Tuner relying on the percentage of time with full active workers and the
+ * ratio of merge/emptied intra-bag to adjust the grain size of the
+ * multithreaded global load balancer
  *
  *
  * @author Patrick Finnerty
  *
  */
-public class Ntuner implements Tuner, Serializable {
+public class Newtuner11 implements Tuner, Serializable {
 
   /** Serial Version UID */
   private static final long serialVersionUID = -2434717487578453824L;
 
   /**
-   * Value of member {@link PlaceLogger#interQueueFed} the last time the tuner
-   * was called. Is used to determine how many actions were performed in the
+   * Value of member {@link PlaceLogger#intraQueueFedByWorker} added to
+   * {@link PlaceLogger#intraQueueFedByLifeline} the last time the tuner was
+   * called. Is used to determine how many actions were performed in the
    * interval between the last call to the tuner.
    */
   long oldIntraQueueFed;
 
   /**
-   * Value of member {@link PlaceLogger#interQueueSplit} the last time the tuner
-   * was called. Is used to determine how many actions were performed during the
-   * last time interval.
+   * Value of member {@link PlaceLogger#intraQueueEmptied} the last time the
+   * tuner was called. Is used to determine how many actions were performed
+   * during the last time interval.
    */
-  long oldIntraQueueSplit;
+  long oldIntraQueueEmptied;
 
   /**
    * Value of member {@link PlaceLogger#time} at the last index which counts the
@@ -134,7 +92,7 @@ public class Ntuner implements Tuner, Serializable {
     lastCallTimestamp = System.nanoTime();
     oldIntraQueueFed = l.intraQueueFedByWorker.get()
         + l.intraQueueFedByLifeline.get();
-    oldIntraQueueSplit = l.intraQueueSplit.get();
+    oldIntraQueueEmptied = l.intraQueueEmptied.get();
     synchronized (l) {
       oldMaxWorkerAccumulatedTime = l.time[l.time.length - 1];
     }
@@ -167,14 +125,16 @@ public class Ntuner implements Tuner, Serializable {
       timeMaxWorker += (stamp - l.lastEventTimeStamp);
     }
 
-    final long newSplit = l.intraQueueSplit.get();
+    final long newEmpty = l.intraQueueEmptied.get();
     final long newFeed = l.intraQueueFedByWorker.get()
         + l.intraQueueFedByLifeline.get();
 
     // Computing the indicators chosen
-    final long split = newSplit - oldIntraQueueSplit;
+    final long empty = newEmpty - oldIntraQueueEmptied;
     final long feed = newFeed - oldIntraQueueFed;
-    final boolean nTooSmall = split < feed * 2;
+
+    // CRITERIA GRAIN TOO SMALL : feed/empty > 1.1
+    final boolean nTooSmall = feed * 10 > empty * 11;
 
     final long elapsed = stamp - lastCallTimestamp;
     final boolean nTooLarge = timeMaxWorker * 10 < 9 * elapsed;
@@ -218,7 +178,7 @@ public class Ntuner implements Tuner, Serializable {
     // Saving the current values for the next check
     lastCallTimestamp = stamp;
     oldIntraQueueFed = newFeed;
-    oldIntraQueueSplit = newSplit;
+    oldIntraQueueEmptied = newEmpty;
     oldMaxWorkerAccumulatedTime = maxWorkerStamp;
 
     return lastCallTimestamp;

@@ -1,14 +1,14 @@
-/*
- *  This file is part of the Handy Tools for Distributed Computing project
- *  HanDist (https://github.com/handist)
+/*******************************************************************************
+ * This file is part of the Handy Tools for Distributed Computing project
+ * HanDist (https:/github.com/handist)
  *
- *  This file is licensed to You under the Eclipse Public License (EPL);
- *  You may not use this file except in compliance with the License.
- *  You may obtain a copy of the License at
- *      http://www.opensource.org/licenses/eclipse-1.0.php
+ * This file is licensed to You under the Eclipse Public License (EPL);
+ * You may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ * 	https://www.opensource.org/licenses/eclipse-1.0.php
  *
- *  (C) copyright CS29 Fine 2018-2019.
- */
+ * (C) copyright CS29 Fine 2018-2021
+ ******************************************************************************/
 package handist.glb;
 
 import java.io.PrintStream;
@@ -70,7 +70,7 @@ public class Logger {
 
     // Print the general counters for each place
     out.println(
-        "Place;Worker Spawns;IntraQueueSplit;IntraQueueFed;IntraQueueEmptied;"
+        "Place;Worker Spawns;IntraQueueSplit;IntraQueueFedByWorker;IntraQueueFedByLifeline;IntraQueueEmptied;"
             + "InterQueueSplit;InterQueueFed;InterQueueEmptied;"
             + "Rdm Steals Attempted;Rdm Steals Successes;"
             + "Rdm Steals Received;Rdm Steals Suffered;"
@@ -82,13 +82,13 @@ public class Logger {
 
     for (final PlaceLogger l : placeLogs) {
       out.println(l.place + ";" + l.workerSpawned + ";" + l.intraQueueSplit
-          + ";" + l.intraQueueFed + ";" + l.intraQueueEmptied + ";"
-          + l.interQueueSplit + ";" + l.interQueueFed + ";"
-          + l.interQueueEmptied + ";" + l.stealsAttempted + ";"
-          + l.stealsSuccess + ";" + l.stealsReceived + ";" + l.stealsSuffered
-          + ";" + l.lifelineStealsAttempted + ";" + l.lifelineStealsSuccess
-          + ";" + l.lifelineStealsReceived + ";" + l.lifelineStealsSuffered
-          + ";" + l.lifelineThreadActive / 1e9 + ";"
+          + ";" + l.intraQueueFedByWorker + ";" + l.intraQueueFedByLifeline
+          + ";" + l.intraQueueEmptied + ";" + l.interQueueSplit + ";"
+          + l.interQueueFed + ";" + l.interQueueEmptied + ";"
+          + l.stealsAttempted + ";" + l.stealsSuccess + ";" + l.stealsReceived
+          + ";" + l.stealsSuffered + ";" + l.lifelineStealsAttempted + ";"
+          + l.lifelineStealsSuccess + ";" + l.lifelineStealsReceived + ";"
+          + l.lifelineStealsSuffered + ";" + l.lifelineThreadActive / 1e9 + ";"
           + l.lifelineThreadHold / 1e9 + ";" + l.lifelineThreadInactive / 1e9
           + ";" + l.lifelineThreadWokenUp + ";" + l.communicationSent + ";"
           + l.communicationReceived + ";" + l.yieldingTime / 1e9 + ";");
@@ -171,7 +171,7 @@ public class Logger {
       lineToPrint = "";
       hasData = places;
       for (int i = 0; i < places; i++) {
-        if (data[i].length < line || data[i][line] == null) {
+        if (data[i].length <= line || data[i][line] == null) {
           // No data left for this place
           hasData--;
           lineToPrint += ";;";

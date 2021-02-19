@@ -1,14 +1,14 @@
-/*
- *  This file is part of the Handy Tools for Distributed Computing project
- *  HanDist (https://github.com/handist)
+/*******************************************************************************
+ * This file is part of the Handy Tools for Distributed Computing project
+ * HanDist (https:/github.com/handist)
  *
- *  This file is licensed to You under the Eclipse Public License (EPL);
- *  You may not use this file except in compliance with the License.
- *  You may obtain a copy of the License at
- *      http://www.opensource.org/licenses/eclipse-1.0.php
+ * This file is licensed to You under the Eclipse Public License (EPL);
+ * You may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ * 	https://www.opensource.org/licenses/eclipse-1.0.php
  *
- *  (C) copyright CS29 Fine 2018-2019.
- */
+ * (C) copyright CS29 Fine 2018-2021
+ ******************************************************************************/
 package handist.glb.util;
 
 import java.io.Serializable;
@@ -45,34 +45,34 @@ import handist.glb.legacy.GLBProcessor;
  * <pre>
  * public class Sum implements Fold&lt;Sum&gt;, Serializable {
  *
- *   private static final long serialVersionUID = 3582168956043482749L;
+ *     private static final long serialVersionUID = 3582168956043482749L;
  *
- *   public int sum;
+ *     public int sum;
  *
- *   &#64;Override
- *   public void fold(Sum r) {
- *     sum += r.sum;
- *   }
+ *     &#64;Override
+ *     public void fold(Sum r) {
+ *         sum += r.sum;
+ *     }
  *
- *   public Sum(int s) {
- *     sum = s;
- *   }
+ *     public Sum(int s) {
+ *         sum = s;
+ *     }
  * }
  * </pre>
  *
  * @param <R>
- *          implementing class itself (reflective-type method implementation)
+ *            implementing class itself (reflective-type method implementation)
  *
  * @author Patrick Finnerty
  */
 public interface Fold<R extends Fold<?> & Serializable> {
 
-  /**
-   * Folds (merges) the given parameter's result into this instance.
-   *
-   * @param r
-   *          the Fold to be folded into {@code this}.
-   */
-  public void fold(R r);
+    /**
+     * Folds (merges) the given parameter's result into this instance.
+     *
+     * @param r
+     *            the Fold to be folded into {@code this}.
+     */
+    public void fold(R r);
 
 }

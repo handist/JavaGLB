@@ -1,14 +1,14 @@
-/*
- *  This file is part of the Handy Tools for Distributed Computing project
- *  HanDist (https://github.com/handist)
+/*******************************************************************************
+ * This file is part of the Handy Tools for Distributed Computing project
+ * HanDist (https:/github.com/handist)
  *
- *  This file is licensed to You under the Eclipse Public License (EPL);
- *  You may not use this file except in compliance with the License.
- *  You may obtain a copy of the License at
- *      http://www.opensource.org/licenses/eclipse-1.0.php
+ * This file is licensed to You under the Eclipse Public License (EPL);
+ * You may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ * 	https://www.opensource.org/licenses/eclipse-1.0.php
  *
- *  (C) copyright CS29 Fine 2018-2019.
- */
+ * (C) copyright CS29 Fine 2018-2021
+ ******************************************************************************/
 package handist.glb.util;
 
 /**
@@ -36,27 +36,27 @@ package handist.glb.util;
  */
 public interface LifelineStrategy {
 
-  /**
-   * Gives the list of nodes that place {@code thief} can steal work from.
-   *
-   * @param thief
-   *          id of the place stealing work
-   * @param nbPlaces
-   *          number of places in the system
-   * @return array containing the ids of the places place {@code thief} should
-   *         steal from
-   */
-  public int[] lifeline(int thief, int nbPlaces);
+    /**
+     * Gives the list of nodes that place {@code thief} can steal work from.
+     *
+     * @param thief
+     *            id of the place stealing work
+     * @param nbPlaces
+     *            number of places in the system
+     * @return array containing the ids of the places place {@code thief} should
+     *         steal from
+     */
+    public int[] lifeline(int thief, int nbPlaces);
 
-  /**
-   * Gives the list of places that can steal work from place {@code target}.
-   *
-   * @param target
-   *          id of the place victim of steals
-   * @param nbPlaces
-   *          number of places in the system
-   * @return array containing the ids of the places that can steal work from
-   *         place {@code target}
-   */
-  public int[] reverseLifeline(int target, int nbPlaces);
+    /**
+     * Gives the list of places that can steal work from place {@code target}.
+     *
+     * @param target
+     *            id of the place victim of steals
+     * @param nbPlaces
+     *            number of places in the system
+     * @return array containing the ids of the places that can steal work from
+     *         place {@code target}
+     */
+    public int[] reverseLifeline(int target, int nbPlaces);
 }

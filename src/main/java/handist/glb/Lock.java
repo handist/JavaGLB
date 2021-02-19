@@ -1,14 +1,14 @@
-/*
- *  This file is part of the Handy Tools for Distributed Computing project
- *  HanDist (https://github.com/handist)
+/*******************************************************************************
+ * This file is part of the Handy Tools for Distributed Computing project
+ * HanDist (https:/github.com/handist)
  *
- *  This file is licensed to You under the Eclipse Public License (EPL);
- *  You may not use this file except in compliance with the License.
- *  You may obtain a copy of the License at
- *      http://www.opensource.org/licenses/eclipse-1.0.php
+ * This file is licensed to You under the Eclipse Public License (EPL);
+ * You may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ * 	https://www.opensource.org/licenses/eclipse-1.0.php
  *
- *  (C) copyright CS29 Fine 2018-2019.
- */
+ * (C) copyright CS29 Fine 2018-2021
+ ******************************************************************************/
 package handist.glb;
 
 import java.io.Serializable;
@@ -28,59 +28,61 @@ import java.util.concurrent.Semaphore;
  */
 public class Lock implements ForkJoinPool.ManagedBlocker, Serializable {
 
-  /** Serial Version UID */
-  private static final long serialVersionUID = -3222675796580210125L;
+    /** Serial Version UID */
+    private static final long serialVersionUID = -3222675796580210125L;
 
-  /** Semaphore used for this lock implementation */
-  final Semaphore lock;
+    /** Semaphore used for this lock implementation */
+    final Semaphore lock;
 
-  /**
-   * Constructor Initializes a lock with no permits.
-   */
-  public Lock() {
-    lock = new Semaphore(0);
-  }
-
-  /*
-   * (non-Javadoc)
-   *
-   * @see java.util.concurrent.ForkJoinPool.ManagedBlocker#block()
-   */
-  @Override
-  public boolean block() {
-    try {
-      lock.acquire();
-    } catch (final InterruptedException e) {
-      e.printStackTrace();
-      block();
+    /**
+     * Constructor Initializes a lock with no permits.
+     */
+    public Lock() {
+        lock = new Semaphore(0);
     }
-    return true;
-  }
 
-  /*
-   * (non-Javadoc)
-   *
-   * @see java.util.concurrent.ForkJoinPool.ManagedBlocker#isReleasable()
-   */
-  @Override
-  public boolean isReleasable() {
-    return lock.tryAcquire();
-  }
+    /*
+     * (non-Javadoc)
+     *
+     * @see java.util.concurrent.ForkJoinPool.ManagedBlocker#block()
+     */
+    @Override
+    public boolean block() {
+        try {
+            lock.acquire();
+        } catch (final InterruptedException e) {
+            e.printStackTrace();
+            block();
+        }
+        return true;
+    }
 
-  /**
-   * Called to unblock the thread that is blocked using this {@link Lock}.
-   */
-  public void unblock() {
-    lock.drainPermits(); // Avoids unnecessary accumulation of permits in the
-                         // Lock. In our situation, a maximum of one permit is
-                         // sufficient.
-    lock.release();
-  }
+    /*
+     * (non-Javadoc)
+     *
+     * @see java.util.concurrent.ForkJoinPool.ManagedBlocker#isReleasable()
+     */
+    @Override
+    public boolean isReleasable() {
+        return lock.tryAcquire();
+    }
 
-  /**
-   * Drains all the permits in this lock.
-   */
-  public void reset() {
-    lock.drainPermits();
-  }
+    /**
+     * Called to unblock the thread that is blocked using this {@link Lock}.
+     */
+    public void unblock() {
+        lock.drainPermits(); // Avoids unnecessary accumulation of permits in
+                             // the
+                             // Lock. In our situation, a maximum of one permit
+                             // is
+                             // sufficient.
+        lock.release();
+    }
+
+    /**
+     * Drains all the permits in this lock.
+     */
+    public void reset() {
+        lock.drainPermits();
+    }
 }

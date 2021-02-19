@@ -1,4 +1,6 @@
 doc/
 .classpath
+.settings
 .project
 /target/
+**~
